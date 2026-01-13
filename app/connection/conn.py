@@ -6,7 +6,7 @@ import os
 
 load_dotenv(override=False)  # <- key change
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("database_url_azure")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
 
