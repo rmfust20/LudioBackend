@@ -4,7 +4,8 @@ from app.connection import SessionDep
 from fastapi import APIRouter
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from app.models import BoardGame
-from app.services import getBoardGameByName
+from app.models.boardGame import BoardGameFeedItem
+from app.services import getBoardGameByName, reviewsService, feedService
 from app.models import BoardGameDesigner
 from app.models import BoardGameDesignerLink
 
@@ -37,9 +38,9 @@ def rehydrate_user_board_games(user_id: int, session:SessionDep, board_game_ids:
 
 @router.get("/feed", response_model=list[BoardGame])
 def get_board_games(session:SessionDep, offset: int = 0, limit: Annotated[int, Query(le=100)] = 100):
-    statement = select(BoardGame).offset(offset).limit(limit)
-    board_games = session.exec(statement).all()
-    return board_games
+    board_games = select(BoardGame).offset(offset).limit(limit)
+    boardGames = session.exec(board_games).all()
+    return boardGames
 
 @router.get("/boardGame/{board_game_id}", response_model=BoardGame)
 def get_board_game_by_id(board_game_id: int, session:SessionDep):

@@ -1,7 +1,7 @@
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 class UserBoardGameBase(SQLModel):
-    username: str = Field(index=True)
+    username: str = Field(index=True, sa_column_kwargs={"unique": True})
     email: str = Field(index = True)
 
 class UserBoardGame(UserBoardGameBase,table=True):
@@ -15,7 +15,5 @@ class UserBoardGameCreate(UserBoardGameBase):
     password : str
 
 class UserBoardGameUpdate(UserBoardGameBase):
-    username: str | None = None
-    email: str | None = None
     password: str | None = None
 

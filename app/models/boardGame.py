@@ -1,14 +1,26 @@
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlmodel import Field, SQLModel
+
+class BoardGameBase(SQLModel):
+    id: int
+    name: str
+    thumbnail: str | None = None
+    play_time: int | None = None
+    min_players: int | None = None
+    max_players: int | None = None
+    year_published: int | None = None
+    description: str | None = None
+    min_age: int | None = None
+    image: str | None = None
 
 
-class BoardGame(SQLModel, table=True):
+class BoardGame(BoardGameBase, table=True):
     id: int = Field(primary_key=True)
     name: str = Field(index=True)
-    thumbnail: str | None = Field(default=None)
-    play_time: int | None = Field(default=None)
-    min_players: int | None = Field(default=None)
-    max_players: int | None = Field(default=None)
-    year_published: int | None = Field(default=None)
-    description: str | None = Field(default=None)
-    min_age: int | None = Field(default=None)
-    image: str | None = Field(default=None)
+
+
+class BoardGameFeedItem(BoardGameBase):  # ✅ NOT a table
+    feed_position: int | None = None
+    average_rating: float | None = None
+    number_of_ratings: int = 0
+    number_of_reviews: int = 0
+    designers: list[str] = Field(default_factory=list)
