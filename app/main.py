@@ -2,10 +2,11 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from app.connection import engine
-from app.models import UserBoardGame, UserBoardGameCreate, UserBoardGamePublic, UserBoardGameUpdate
+from app.models import UserBoardGame, UserBoardGameCreate, UserBoardGamePublic, UserBoardGameUpdate, GameNight
 from app.routes import boardGameAPI
 from app.routes import reviewsAPI
 from app.routes import userAPI
+from app.routes import gameNightAPI
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
@@ -20,6 +21,7 @@ app = FastAPI()
 app.include_router(boardGameAPI.router)
 app.include_router(reviewsAPI.router)
 app.include_router(userAPI.router)
+app.include_router(gameNightAPI.router)
 
 
 @app.on_event("startup")

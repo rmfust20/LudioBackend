@@ -10,3 +10,7 @@ from .boardGameDesignerLink import BoardGameDesignerLink
 from .review import Review, ReviewUpdate
 from .user import UserBoardGame, UserBoardGameCreate, UserBoardGamePublic, UserBoardGameUpdate
 from .loginRequest import LoginRequest
+from .gameNight import GameNight
+from .gameSession import GameSession
+from .gameNightUserLink import GameNightUserLink
+from .gameSessionUserLink import GameSessionUserLink
