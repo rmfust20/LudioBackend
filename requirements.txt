@@ -13,3 +13,6 @@ SQLAlchemy
 sqlmodel
 uvicorn
 xmltodict
+azure-storage-blob
+azure-identity
+python-multipart
