@@ -8,6 +8,8 @@ from app.routes import boardGameAPI
 from app.routes import reviewsAPI
 from app.routes import userAPI
 from app.routes import gameNightAPI
+from app.routes import imagesAPI
+
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
@@ -23,6 +25,7 @@ app.include_router(boardGameAPI.router)
 app.include_router(reviewsAPI.router)
 app.include_router(userAPI.router)
 app.include_router(gameNightAPI.router)
+app.include_router(imagesAPI.router)
 
 
 @app.on_event("startup")
