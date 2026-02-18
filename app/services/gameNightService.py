@@ -32,7 +32,7 @@ def add_game_night(payload: GameNightPublic, session: SessionDep):
     print("got here")
     game_night_db = GameNight(
         host_user_id=payload.host_user_id,
-        date=payload.date,
+        date=func.now(),
         description=payload.description
     )
     session.add(game_night_db)
@@ -50,7 +50,8 @@ def add_game_night(payload: GameNightPublic, session: SessionDep):
             game_night_id=game_night_db.id,
             board_game_id=s.board_game_id,
             duration_minutes=s.duration_minutes,
-            winner_user_id=s.winner_user_id
+            winner_user_id=s.winner_user_id,
+            date = func.now()
         )
         session.add(game_session_db)
         session.flush()  # assigns game_session_db.id (needed for session images)

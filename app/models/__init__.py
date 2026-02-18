@@ -14,3 +14,4 @@ from .gameNight import GameNight
 from .gameSession import GameSession
 from .gameNightUserLink import GameNightUserLink
 from .gameSessionUserLink import GameSessionUserLink
+from .userFriendLink import UserFriendLink

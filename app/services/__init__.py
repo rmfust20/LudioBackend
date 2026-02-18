@@ -8,3 +8,4 @@ from .tokenService import (
     hash_refresh_token)
 from .gameNightService import get_game_night_feed
 from .imageService import upload_images
+from .boardGameService import get_general_trending_feed

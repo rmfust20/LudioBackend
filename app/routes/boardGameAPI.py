@@ -5,9 +5,10 @@ from fastapi import APIRouter
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from app.models import BoardGame
 from app.models.boardGame import BoardGameFeedItem
-from app.services import getBoardGameByName, reviewsService, feedService
+from app.services import getBoardGameByName, reviewsService, feedService, get_general_trending_feed
 from app.models import BoardGameDesigner
 from app.models import BoardGameDesignerLink
+from app.services.boardGameService import get_trending_with_friends_feed
 
 
 router = APIRouter(
@@ -36,6 +37,13 @@ def rehydrate_user_board_games(user_id: int, session:SessionDep, board_game_ids:
     board_games = session.exec(statement).all()
     return board_games
 
+@router.get("/trendingFeed", response_model=list[BoardGame])
+def get_trending_board_games_feed(session:SessionDep,offset: int = 0):
+    return get_general_trending_feed(session=session, offset=offset)
+
+@router.get("/trendingFriends/{user_id}", response_model=list[BoardGame])
+def get_trending_friends_board_games_feed(user_id: int, session:SessionDep, offset: int = 0):
+    return get_trending_with_friends_feed(user_id=user_id, session=session, offset=offset)
 
 #Deprecated
 @router.get("/feed", response_model=list[BoardGame])
@@ -45,7 +53,7 @@ def get_board_games(session:SessionDep, offset: int = 0, limit: Annotated[int, Q
     return boardGames
 
 #get indidual board game by id
-@router.get("/boardGame/{board_game_id}", response_model=BoardGame)
+@router.get("/fetchBoardGame/{board_game_id}", response_model=BoardGame)
 def get_board_game_by_id(board_game_id: int, session:SessionDep):
     statemenet = select(BoardGame).where(BoardGame.id == board_game_id)
     board_game = session.exec(statemenet).first()   

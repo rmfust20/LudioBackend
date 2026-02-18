@@ -1,5 +1,5 @@
 from typing import List, Optional, TYPE_CHECKING
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Date, Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     # This only runs during static analysis (IDE/Mypy), not at runtime
@@ -10,7 +10,7 @@ class GameNight(SQLModel, table=True):
 
     host_user_id: int = Field(foreign_key="userboardgame.id", index=True)
 
-    date: Optional[str] = None
+    date: Optional[Date] = None
     description: Optional[str] = None
 
     # IMPORTANT: default_factory=list
