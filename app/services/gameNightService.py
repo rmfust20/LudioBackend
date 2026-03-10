@@ -31,10 +31,13 @@ def get_game_night_feed(user_id: int, offset: int, session: SessionDep) -> list[
     stmt = (
         select(GameNight)
         .join(GameNightUserLink, GameNight.id == GameNightUserLink.game_night_id)
-        .where(GameNightUserLink.user_id.in_(
-            select(UserFriendLink.friend_user_id)
-            .where(UserFriendLink.user_id == user_id)
-        ))
+        .where(
+            (GameNightUserLink.user_id == user_id) |
+            GameNightUserLink.user_id.in_(
+                select(UserFriendLink.friend_user_id)
+                .where(UserFriendLink.user_id == user_id)
+            )
+        )
         .options(
             selectinload(GameNight.images),
             selectinload(GameNight.sessions).selectinload(GameSession.winners),
