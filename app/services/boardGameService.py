@@ -47,4 +47,9 @@ def get_trending_with_friends_feed(user_id: int, session: SessionDep, offset: in
     board_games = session.exec(statement).all()
     return board_games
 
+def get_board_games_by_ids(board_game_ids: list[int], session:SessionDep) -> list[BoardGame]:
+    statement = select(BoardGame).where(BoardGame.id.in_(board_game_ids))
+    board_games = session.exec(statement).all()
+    return board_games
+
 

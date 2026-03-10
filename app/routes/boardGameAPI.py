@@ -73,5 +73,13 @@ def get_board_game_designers(board_game_id: int, session:SessionDep):
     return results
 
 
+@router.get("/boardGamesByIds", response_model=list[BoardGame])
+def get_board_games_by_ids(session: SessionDep, board_game_ids: list[int] = Query(...)):
+    statement = select(BoardGame).where(BoardGame.id.in_(board_game_ids)).order_by(BoardGame.id)
+    board_games = session.exec(statement).all()
+    return board_games
+
+#trigger build
+
 
     
