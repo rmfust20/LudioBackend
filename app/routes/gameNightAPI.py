@@ -17,7 +17,7 @@ router = APIRouter(
     prefix="/gameNights",
     )
 
-@router.get("/userFeed/{user_id}", response_model=GameNight)
+@router.get("/userFeed/{user_id}", response_model=list[GameNightPublic])
 def get_game_nights(user_id: int, session:SessionDep, offset: int = 0):
     feed = get_game_night_feed(user_id=user_id, offset=offset, session=session)
     return feed

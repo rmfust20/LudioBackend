@@ -1,4 +1,11 @@
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from typing import TYPE_CHECKING
+from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
+from app.models.gameSessionUserLink import GameSessionUserLink
+from app.models.gameNightUserLink import GameNightUserLink
+
+if TYPE_CHECKING:
+    from app.models.gameSession import GameSession
+    from app.models.gameNight import GameNight
 
 class UserBoardGameBase(SQLModel):
     username: str = Field(index=True, sa_column_kwargs={"unique": True})
@@ -7,6 +14,8 @@ class UserBoardGameBase(SQLModel):
 class UserBoardGame(UserBoardGameBase,table=True):
     id: int | None = Field(default=None, primary_key=True)
     password_hash : str
+    won_sessions: list["GameSession"] = Relationship(back_populates="winners", link_model=GameSessionUserLink)
+    game_nights: list["GameNight"] = Relationship(link_model=GameNightUserLink, back_populates="users")
 
 class UserBoardGamePublic(UserBoardGameBase):
     id: int

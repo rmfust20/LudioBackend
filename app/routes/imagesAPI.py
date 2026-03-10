@@ -2,12 +2,14 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query
 from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient, ContentSettings
+from azure.storage.blob import BlobServiceClient, ContentSettings, generate_blob_sas, BlobSasPermissions
 
 from app.connection.conn import SessionDep
 from app.models.gameNight import GameNight
+from app.models.user import UserBoardGame
+from app.services.userService import get_current_user
 
 router = APIRouter(
     prefix="/images",
@@ -58,7 +60,7 @@ async def upload_image(
 @router.post("/upload", summary="Upload up to 5 images")
 async def upload_images(
     files: list[UploadFile] = File(..., description="Up to 5 image files"),
-    user_id: int = 1
+    user: UserBoardGame = Depends(get_current_user)
 ):
     if not files:
         raise HTTPException(400, "No files provided.")
@@ -80,7 +82,7 @@ async def upload_images(
             raise HTTPException(413, f"File too large (max {MAX_BYTES // (1024 * 1024)}MB).")
 
         ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[f.content_type]
-        blob_name = f"users/{user_id}/{uuid.uuid4().hex}.{ext}"
+        blob_name = f"users/{user.id}/{uuid.uuid4().hex}.{ext}"
 
         blob_client = bsc.get_blob_client(container=container_name, blob=blob_name)
         blob_client.upload_blob(
@@ -97,3 +99,48 @@ async def upload_images(
         })
 
     return {"count": len(uploaded), "uploads": uploaded}
+
+@router.get("/url")
+def get_image_url(blob_name: str):
+    ACCOUNT_NAME = "tabulususerimages"
+    CONTAINER = "images"
+    bsc = blob_service_client()
+    now = datetime.now(timezone.utc)
+
+    delegation_key = bsc.get_user_delegation_key(
+        key_start_time=now - timedelta(minutes=5),
+        key_expiry_time=now + timedelta(hours=1),
+    )
+    sas = generate_blob_sas(
+        account_name=ACCOUNT_NAME,
+        container_name=CONTAINER,
+        blob_name=blob_name,
+        user_delegation_key=delegation_key,
+        permission=BlobSasPermissions(read=True),
+        expiry=now + timedelta(hours=1),
+    )
+    return {"url": f"https://{ACCOUNT_NAME}.blob.core.windows.net/{CONTAINER}/{blob_name}?{sas}"}
+
+@router.get("/urls")
+def get_image_urls(blob_names: list[str] = Query(...)):
+    ACCOUNT_NAME = "tabulususerimages"
+    CONTAINER = "images"
+    bsc = blob_service_client()
+    now = datetime.now(timezone.utc)
+
+    delegation_key = bsc.get_user_delegation_key(
+        key_start_time=now - timedelta(minutes=5),
+        key_expiry_time=now + timedelta(hours=1),
+    )
+    urls = []
+    for blob_name in blob_names:
+        sas = generate_blob_sas(
+            account_name=ACCOUNT_NAME,
+            container_name=CONTAINER,
+            blob_name=blob_name,
+            user_delegation_key=delegation_key,
+            permission=BlobSasPermissions(read=True),
+            expiry=now + timedelta(hours=1),
+        )
+        urls.append(f"https://{ACCOUNT_NAME}.blob.core.windows.net/{CONTAINER}/{blob_name}?{sas}")
+    return {"urls": urls}

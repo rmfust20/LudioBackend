@@ -2,10 +2,12 @@ from typing import List, Optional, TYPE_CHECKING
 from pydantic import BaseModel
 from sqlmodel import Date, Field, Relationship, SQLModel
 from datetime import date
+from app.models.gameSessionUserLink import GameSessionUserLink
 
 if TYPE_CHECKING:
     # This only runs during static analysis (IDE/Mypy), not at runtime
     from app.models.gameNight import GameNight
+    from app.models.user import UserBoardGame
 
 
 
@@ -16,7 +18,8 @@ class GameSession(SQLModel, table=True):
     board_game_id: int = Field(foreign_key="boardgame.id", index=True)
     duration_minutes: int | None = Field(default=None)
     session_date: date | None = Field(default=None)
-    game_night : "GameNight" = Relationship(back_populates="sessions")
+    game_night: "GameNight" = Relationship(back_populates="sessions")
+    winners: list["UserBoardGame"] = Relationship(back_populates="won_sessions", link_model=GameSessionUserLink)
     #Subsection of GameNight, has images and users linked to it
 
 class GameSessionPublic(SQLModel):

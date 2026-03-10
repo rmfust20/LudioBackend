@@ -2,10 +2,13 @@ from typing import List, Optional, TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field, Relationship, SQLModel
 from datetime import date
+from app.models.gameNightUserLink import GameNightUserLink
+from app.models.user import UserBoardGameClientFacing
 
 if TYPE_CHECKING:
     # This only runs during static analysis (IDE/Mypy), not at runtime
     from app.models.gameSession import GameSession
+    from app.models.user import UserBoardGame
 
 class GameNight(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -19,6 +22,7 @@ class GameNight(SQLModel, table=True):
     sessions: list["GameSession"] = Relationship(back_populates="game_night")
 
     images: list["GameNightImage"] = Relationship(back_populates="game_night")
+    users: list["UserBoardGame"] = Relationship(link_model=GameNightUserLink, back_populates="game_nights")
 
 class GameNightImage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -40,9 +44,10 @@ class GameSessionHelper(SQLModel):
     
 
 class GameNightPublic(SQLModel):
+    id: Optional[int] = None
     host_user_id: int
     game_night_date: Optional[date] = None
     description: Optional[str] = None
     sessions: List[GameSessionHelper] = []
     images: List[str] = []
-    user_ids: List[int] = []
+    users: List[UserBoardGameClientFacing] = []
