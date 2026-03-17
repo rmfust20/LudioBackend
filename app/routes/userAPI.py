@@ -118,5 +118,22 @@ def get_friends(user_id: int, session: SessionDep):
 @router.get("/userBoardGames/{user_id}", response_model=list[BoardGame])
 def get_user_board_games_route(user_id: int, session: SessionDep):
     return get_user_board_games(user_id, session)
-    
 
+@router.patch("/updateUser", response_model=UserBoardGamePublic)
+def update_user(updates: UserBoardGameUpdate, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+    if updates.profile_image_url is not None:
+        current_user.profile_image_url = updates.profile_image_url
+    if updates.username is not None:
+        current_user.username = updates.username
+    if updates.email is not None:
+        current_user.email = updates.email
+    if updates.password is not None:
+        current_user.password_hash = hash_password(updates.password)
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+    return current_user
+
+@router.get("/userBoardGames/{user_id}", response_model=list[BoardGame])
+def get_user_board_games_route(user_id: int, session: SessionDep):
+    return get_user_board_games(user_id, session)

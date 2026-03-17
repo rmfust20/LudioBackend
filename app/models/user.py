@@ -16,15 +16,18 @@ class UserBoardGame(UserBoardGameBase,table=True):
     password_hash : str
     won_sessions: list["GameSession"] = Relationship(back_populates="winners", link_model=GameSessionUserLink)
     game_nights: list["GameNight"] = Relationship(link_model=GameNightUserLink, back_populates="users")
+    profile_image_url: str | None = None
 
 class UserBoardGamePublic(UserBoardGameBase):
     id: int
+    profile_image_url: str | None = None
 
 class UserBoardGameCreate(UserBoardGameBase):
     password : str
 
 class UserBoardGameUpdate(UserBoardGameBase):
     password: str | None = None
+    profile_image_url: str | None = None
 
 class UserBoardGameClientFacing(SQLModel):
     id: int
