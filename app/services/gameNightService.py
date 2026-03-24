@@ -103,6 +103,36 @@ def get_user_game_nights(user_id: int, session: SessionDep) -> list[GameNightPub
         for night in nights
     ]
 
+def get_user_game_night(game_night_id: int, session: SessionDep) -> GameNightPublic | None:
+    stmt = (
+        select(GameNight)
+        .where(GameNight.id == game_night_id)
+        .options(
+            selectinload(GameNight.images),
+            selectinload(GameNight.sessions).selectinload(GameSession.winners),
+            selectinload(GameNight.users)
+        )
+    )
+    night = session.exec(stmt).unique().first()
+    if not night:
+        return None
+    return GameNightPublic(
+        id=night.id,
+        host_user_id=night.host_user_id,
+        game_night_date=night.game_night_date,
+        description=night.description,
+        sessions=[
+            GameSessionHelper(
+                board_game_id=gs.board_game_id,
+                duration_minutes=gs.duration_minutes,
+                winners_user_id=[w.id for w in gs.winners]
+            )
+            for gs in night.sessions
+        ],
+        images=[image.image_url for image in night.images],
+        users=[UserBoardGameClientFacing(id=u.id, username=u.username) for u in night.users]
+    )
+
 def get_game_night(game_night_id: int, session: SessionDep) -> GameNight | None:
     stmt = (
         select(GameNight)
