@@ -30,19 +30,26 @@ def read_computed_average_rating(board_game_id:int, session:SessionDep):
 
 
 @router.post("/postReview", response_model=Review)
-def create_review_for_board_game(review: Review, session: SessionDep, 
-                                 user: UserBoardGame = Depends(get_current_user)): 
-    #do need to ensure that the userID is the same as the authenticated user
+def create_review_for_board_game(review: Review, session: SessionDep,
+                                 user: UserBoardGame = Depends(get_current_user)):
     if review.user_id != user.id:
         raise HTTPException(403, "Cannot create review for another user")
+    existing = session.exec(
+        select(Review).where(Review.user_id == user.id, Review.board_game_id == review.board_game_id)
+    ).first()
+    if existing:
+        raise HTTPException(409, "You have already reviewed this game")
     return reviewsService.insert_review_for_board_game(review, session)
 
 @router.patch("/editReview/{review_id}", response_model=ReviewUpdate)
-def edit_review_for_board_game(review_id:int, updated_review: ReviewUpdate, session: SessionDep):
+def edit_review_for_board_game(review_id:int, updated_review: ReviewUpdate, session: SessionDep,
+                               current_user: UserBoardGame = Depends(get_current_user)):
     statement = select(Review).where(Review.id == review_id)
     existing_review = session.exec(statement).first()
     if not existing_review:
         raise HTTPException(404, "Review not found")
+    if existing_review.user_id != current_user.id:
+        raise HTTPException(403, "Cannot edit another user's review")
     
     data = updated_review.model_dump(exclude_unset=True)
     existing_review.sqlmodel_update(data)
@@ -60,6 +67,17 @@ def get_user_review_for_board_game(user_id:int, board_game_id:int, session:Sessi
     statement = select(Review).where(Review.user_id == user_id, Review.board_game_id == board_game_id).order_by(Review.id .desc())
     review = session.exec(statement).first()
     return review
+
+@router.delete("/{review_id}")
+def delete_review(review_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+    review = session.get(Review, review_id)
+    if not review:
+        raise HTTPException(404, "Review not found")
+    if review.user_id != current_user.id:
+        raise HTTPException(403, "Cannot delete another user's review")
+    session.delete(review)
+    session.commit()
+    return {"message": "Review deleted"}
 
 
 

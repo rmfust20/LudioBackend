@@ -10,6 +10,11 @@ from typing import Annotated
 from app.models.boardGame import BoardGame
 from app.models.user import UserBoardGameBase
 from app.models.userFriendsPending import UserFriendPending
+from app.models.gameNightUserLink import GameNightUserLink
+from app.models.gameSessionUserLink import GameSessionUserLink
+from app.models.gameNight import GameNight, GameNightImage
+from app.models.gameSession import GameSession
+from app.models import Review
 from app.services.tokenService import create_access_token
 from app.services.userService import get_current_user, get_user_board_games, hash_password, verify_password
 from app.services.tokenService import new_refresh_token, hash_refresh_token
@@ -197,3 +202,46 @@ def update_user(updates: UserBoardGameUpdate, session: SessionDep, current_user:
 def get_user_profile_route(user_id: int, session: SessionDep):
     print("executing get_user_profile_route")
     return session.exec(select(UserBoardGame).where(UserBoardGame.id == user_id)).first()
+
+@router.delete("/deleteAccount")
+def delete_account(session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+    user_id = current_user.id
+
+    # Delete hosted game nights and all their children
+    hosted_night_ids = session.exec(
+        select(GameNight.id).where(GameNight.host_user_id == user_id)
+    ).all()
+    if hosted_night_ids:
+        hosted_session_ids = session.exec(
+            select(GameSession.id).where(GameSession.game_night_id.in_(hosted_night_ids))
+        ).all()
+        if hosted_session_ids:
+            session.exec(delete(GameSessionUserLink).where(GameSessionUserLink.game_session_id.in_(hosted_session_ids)))
+        session.exec(delete(GameSession).where(GameSession.game_night_id.in_(hosted_night_ids)))
+        session.exec(delete(GameNightImage).where(GameNightImage.game_night_id.in_(hosted_night_ids)))
+        session.exec(delete(GameNightUserLink).where(GameNightUserLink.game_night_id.in_(hosted_night_ids)))
+        session.exec(delete(GameNight).where(GameNight.host_user_id == user_id))
+
+    # Friend links
+    session.exec(delete(UserFriendLink).where(UserFriendLink.user_id == user_id))
+    session.exec(delete(UserFriendLink).where(UserFriendLink.friend_user_id == user_id))
+
+    # Pending friend requests
+    session.exec(delete(UserFriendPending).where(UserFriendPending.user_id == user_id))
+    session.exec(delete(UserFriendPending).where(UserFriendPending.incoming_friend_user_id == user_id))
+
+    # Game night participation (non-hosted)
+    session.exec(delete(GameNightUserLink).where(GameNightUserLink.user_id == user_id))
+
+    # Game session wins
+    session.exec(delete(GameSessionUserLink).where(GameSessionUserLink.winner_user_id == user_id))
+
+    # Reviews
+    session.exec(delete(Review).where(Review.user_id == user_id))
+
+    # Refresh tokens
+    session.exec(delete(RefreshToken).where(RefreshToken.user_id == user_id))
+
+    session.delete(current_user)
+    session.commit()
+    return {"message": "Account deleted"}

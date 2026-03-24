@@ -133,6 +133,58 @@ def get_user_game_night(game_night_id: int, session: SessionDep) -> GameNightPub
         users=[UserBoardGameClientFacing(id=u.id, username=u.username) for u in night.users]
     )
 
+def delete_game_night(game_night_id: int, user_id: int, session: SessionDep) -> bool:
+    from sqlmodel import delete as sql_delete
+    from azure.storage.blob import BlobServiceClient
+    from azure.identity import DefaultAzureCredential
+    from azure.core.exceptions import ResourceNotFoundError, AzureError
+
+    night = session.get(GameNight, game_night_id)
+    if not night:
+        return False
+    if night.host_user_id != user_id:
+        raise ValueError("Not authorized to delete this game night")
+
+    # Fetch blob names before touching anything
+    image_rows = session.exec(
+        select(GameNightImage).where(GameNightImage.game_night_id == game_night_id)
+    ).all()
+    blob_names = [img.image_url for img in image_rows]
+
+    # Delete blobs FIRST — if this fails the DB is untouched and data remains intact
+    if blob_names:
+        bsc = BlobServiceClient(
+            account_url="https://tabulususerimages.blob.core.windows.net",
+            credential=DefaultAzureCredential(),
+        )
+        container = bsc.get_container_client("images")
+        failed: list[str] = []
+        for blob_name in blob_names:
+            try:
+                container.get_blob_client(blob_name).delete_blob(delete_snapshots="include")
+            except ResourceNotFoundError:
+                pass  # already gone — that's fine
+            except AzureError as e:
+                failed.append(blob_name)
+
+        if failed:
+            raise RuntimeError(f"Failed to delete {len(failed)} blob(s) from Azure: {failed}")
+
+    # All blobs confirmed gone — now clean up the DB
+    session_ids = session.exec(
+        select(GameSession.id).where(GameSession.game_night_id == game_night_id)
+    ).all()
+    if session_ids:
+        session.exec(sql_delete(GameSessionUserLink).where(GameSessionUserLink.game_session_id.in_(session_ids)))
+
+    session.exec(sql_delete(GameSession).where(GameSession.game_night_id == game_night_id))
+    session.exec(sql_delete(GameNightImage).where(GameNightImage.game_night_id == game_night_id))
+    session.exec(sql_delete(GameNightUserLink).where(GameNightUserLink.game_night_id == game_night_id))
+    session.delete(night)
+    session.commit()
+
+    return True
+
 def get_game_night(game_night_id: int, session: SessionDep) -> GameNight | None:
     stmt = (
         select(GameNight)

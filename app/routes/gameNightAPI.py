@@ -10,7 +10,10 @@ from app.services import getBoardGameByName, reviewsService, feedService
 from app.models import BoardGameDesigner
 from app.models import BoardGameDesignerLink
 from app.services import get_game_night_feed
-from app.services.gameNightService import add_game_night, get_user_game_night, get_user_game_nights
+from app.services.gameNightService import add_game_night, get_user_game_night, get_user_game_nights, delete_game_night
+from app.models.user import UserBoardGame
+from app.services.userService import get_current_user
+from fastapi import Depends
 
 
 router = APIRouter(
@@ -39,3 +42,15 @@ def get_game_night_route(game_night_id: int, session: SessionDep):
     if not night:
         raise HTTPException(404, "Game night not found")
     return night
+
+@router.delete("/{game_night_id}")
+def delete_game_night_route(game_night_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+    try:
+        found = delete_game_night(game_night_id, current_user.id, session)
+    except ValueError:
+        raise HTTPException(403, "Not authorized to delete this game night")
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+    if not found:
+        raise HTTPException(404, "Game night not found")
+    return {"message": "Game night deleted"}
