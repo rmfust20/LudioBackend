@@ -4,7 +4,7 @@ from app.models import UserBoardGame, UserBoardGameCreate, UserBoardGamePublic, 
 from fastapi import APIRouter
 from app.connection import SessionDep
 from fastapi import Depends, FastAPI, HTTPException, Query
-from sqlmodel import Field, Session, SQLModel, create_engine, insert, select, delete
+from sqlmodel import Field, Session, SQLModel, create_engine, insert, select, delete, func
 from app.connection import SessionDep
 from typing import Annotated
 from app.models.boardGame import BoardGame
@@ -215,6 +215,42 @@ def search_users(username: str, session: SessionDep):
     statement = select(UserBoardGame).where(UserBoardGame.username.ilike(f"%{username}%")).limit(25)
     users = session.exec(statement).all()
     return [{"id": u.id, "username": u.username} for u in users]
+
+@router.get("/winRate/{user_id}")
+def get_win_rate(user_id: int, session: SessionDep):
+    # Total sessions at game nights the user attended
+    attended_night_ids = select(GameNightUserLink.game_night_id).where(GameNightUserLink.user_id == user_id)
+    total = session.exec(
+        select(func.count(GameSession.id)).where(GameSession.game_night_id.in_(attended_night_ids))
+    ).one()
+
+    # Sessions where user was a winner
+    wins = session.exec(
+        select(func.count(GameSessionUserLink.game_session_id))
+        .where(GameSessionUserLink.winner_user_id == user_id)
+    ).one()
+
+    win_rate = round(wins / total, 4) if total > 0 else 0.0
+    return {"user_id": user_id, "wins": wins, "total_sessions": total, "win_rate": win_rate}
+
+@router.get("/winRate/{user_id}/{board_game_id}")
+def get_win_rate_for_board_game(user_id: int, board_game_id: int, session: SessionDep):
+    # Sessions of this specific game at nights the user attended
+    attended_night_ids = select(GameNightUserLink.game_night_id).where(GameNightUserLink.user_id == user_id)
+    total = session.exec(
+        select(func.count(GameSession.id))
+        .where(GameSession.game_night_id.in_(attended_night_ids), GameSession.board_game_id == board_game_id)
+    ).one()
+
+    # Wins for this specific game
+    wins_subquery = select(GameSessionUserLink.game_session_id).where(GameSessionUserLink.winner_user_id == user_id)
+    wins = session.exec(
+        select(func.count(GameSession.id))
+        .where(GameSession.id.in_(wins_subquery), GameSession.board_game_id == board_game_id)
+    ).one()
+
+    win_rate = round(wins / total, 4) if total > 0 else 0.0
+    return {"user_id": user_id, "board_game_id": board_game_id, "wins": wins, "total_sessions": total, "win_rate": win_rate}
 
 @router.get("/userProfile/{user_id}", response_model=UserBoardGamePublic)
 def get_user_profile_route(user_id: int, session: SessionDep):

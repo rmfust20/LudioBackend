@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from app.models import BoardGame
 from app.models.boardGame import BoardGameFeedItem
-from app.models.gameNight import GameNight, GameNightPublic
+from app.models.gameNight import GameNight, GameNightPublic, GameNightCreate
 from app.services import getBoardGameByName, reviewsService, feedService
 from app.models import BoardGameDesigner
 from app.models import BoardGameDesignerLink
@@ -28,7 +28,7 @@ def get_game_nights(user_id: int, session:SessionDep, offset: int = 0):
     
     
 @router.post("/postNight")
-def post_game_night(game_night_public: GameNightPublic, session: SessionDep):
+def post_game_night(game_night_public: GameNightCreate, session: SessionDep):
     add_game_night(payload=game_night_public, session=session)
     return {"message": "Game night added successfully"}
 

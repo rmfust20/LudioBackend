@@ -39,6 +39,18 @@ class GameSessionHelper(SQLModel):
     duration_minutes: int | None = None
     winners_user_id: list[int | None] = []
 
+class GameSessionCreate(SQLModel):
+    board_game_id: int
+    duration_minutes: int | None = None
+    winner_user_ids: list[int] = []
+
+class GameNightCreate(SQLModel):
+    host_user_id: int
+    description: str | None = None
+    images: list[str] = []
+    sessions: list[GameSessionCreate] = []
+    users: list[int] = []
+
 
 
     

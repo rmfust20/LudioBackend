@@ -4,7 +4,7 @@ from sqlmodel import select
 from app.connection import SessionDep
 from app.models import Review, BoardGameDesigner, BoardGameDesignerLink, BoardGame, BoardGameFeedItem
 from sqlmodel import Session, select, func, join, case
-from app.models.gameNight import GameNight, GameNightPublic, GameNightImage, GameSessionHelper
+from app.models.gameNight import GameNight, GameNightPublic, GameNightImage, GameSessionHelper, GameNightCreate
 from app.models.gameNightUserLink import GameNightUserLink
 from app.models.user import UserBoardGameClientFacing
 from app.models.gameSession import GameSession
@@ -196,7 +196,7 @@ def get_game_night(game_night_id: int, session: SessionDep) -> GameNight | None:
     )
     return session.exec(stmt).unique().first()
 
-def add_game_night(payload: GameNightPublic, session: SessionDep):
+def add_game_night(payload: GameNightCreate, session: SessionDep):
     # 1) Create the night
     game_night_db = GameNight(
         host_user_id=payload.host_user_id,
@@ -209,26 +209,26 @@ def add_game_night(payload: GameNightPublic, session: SessionDep):
     # 2) Night images
     for url in payload.images:
         session.add(GameNightImage(game_night_id=game_night_db.id, image_url=url))
-    host_ids = {user.id for user in payload.users}
-    if payload.host_user_id not in host_ids:
-        session.add(GameNightUserLink(game_night_id=game_night_db.id, user_id=payload.host_user_id))
-    for user in payload.users:
-        session.add(GameNightUserLink(game_night_id=game_night_db.id, user_id=user.id))
 
-    # 3) Sessions + their images
+    # 3) Attendees — always include host
+    user_ids = set(payload.users)
+    user_ids.add(payload.host_user_id)
+    for uid in user_ids:
+        session.add(GameNightUserLink(game_night_id=game_night_db.id, user_id=uid))
+
+    # 4) Sessions + winners
     for s in payload.sessions:
         game_session_db = GameSession(
             game_night_id=game_night_db.id,
             board_game_id=s.board_game_id,
             duration_minutes=s.duration_minutes,
-            session_date = func.now()
+            session_date=func.now()
         )
         session.add(game_session_db)
-        session.flush()  # assigns game_session_db.id (needed for session images)
-        for winner_id in s.winners_user_id:
+        session.flush()
+        for winner_id in s.winner_user_ids:
             session.add(GameSessionUserLink(game_session_id=game_session_db.id, winner_user_id=winner_id))
 
-        # If your session DTO includes image
     session.commit()
     session.refresh(game_night_db)
     return game_night_db
