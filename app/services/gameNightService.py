@@ -10,7 +10,7 @@ from app.models.user import UserBoardGameClientFacing
 from app.models.gameSession import GameSession
 from app.models.gameSessionUserLink import GameSessionUserLink
 from app.models.userFriendLink import UserFriendLink
-
+#rebuild
 def get_game_night_profile(user_id: int, offset: int, session: SessionDep) -> list[GameNight]:
     stmt = (
         select(GameNight)
