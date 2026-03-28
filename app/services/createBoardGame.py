@@ -50,27 +50,33 @@ def create_board_games(session: SessionDep):
             continue
         # Save if it's a boardgame ite
 
-        thumbnail = data["items"]["item"]["thumbnail"]
-        image = data["items"]["item"]["image"]
-        year_published = data["items"]["item"]["yearpublished"]["@value"]
-        description = data["items"]["item"]["description"]
-        min_players = data["items"]["item"]["minplayers"]["@value"]
-        max_players = data["items"]["item"]["maxplayers"]["@value"]
-        play_time = data["items"]["item"]["playingtime"]["@value"]
-        min_age = data["items"]["item"]["minage"]["@value"]
+        try:
+            thumbnail = item.get("thumbnail")
+            image = item.get("image")
+            year_published = (item.get("yearpublished") or {}).get("@value")
+            description = item.get("description")
+            min_players = (item.get("minplayers") or {}).get("@value")
+            max_players = (item.get("maxplayers") or {}).get("@value")
+            play_time = (item.get("playingtime") or {}).get("@value")
+            min_age = (item.get("minage") or {}).get("@value")
 
-        name = item["name"]
+            name = item.get("name")
+            if not name:
+                continue
+            if isinstance(name, list):
+                name = name[0]
+            if isinstance(name, dict):
+                name = name.get("@value")
+            if not name:
+                continue
 
+            links = item.get("link", [])
+            if isinstance(links, dict):
+                links = [links]
+        except Exception as e:
+            print(f"Skipping game {game_id} due to parse error: {e}")
+            continue
 
-        if isinstance(name, list) and len(name) > 1:
-            name = name[0]
-        
-        if isinstance(name, dict):
-            name = name["@value"]
-        else:
-            name = name[0]["@value"]
-        
-        links = data["items"]["item"]["link"]
         board_game_categories = []
         board_game_mechanics = []
         publishers = []
@@ -83,22 +89,27 @@ def create_board_games(session: SessionDep):
             elif item["@type"] == "boardgamepublisher":
                 publishers.append((item["@value"],item["@id"]))
         
-        board_game = BoardGame(
-            id = game_id,
-            name = name,
-            thumbnail = thumbnail,
-            image = image,
-            year_published = year_published,
-            description = description,
-            min_players = min_players,
-            max_players = max_players,
-            play_time = play_time,
-            min_age = min_age
-        )
+        try:
+            board_game = BoardGame(
+                id = game_id,
+                name = name,
+                thumbnail = thumbnail,
+                image = image,
+                year_published = year_published,
+                description = description,
+                min_players = min_players,
+                max_players = max_players,
+                play_time = play_time,
+                min_age = min_age
+            )
 
-        board_game = BoardGame.model_validate(board_game)
-        session.add(board_game)
-        session.flush()
+            board_game = BoardGame.model_validate(board_game)
+            session.add(board_game)
+            session.flush()
+        except Exception as e:
+            print(f"Skipping game {game_id} due to DB error: {e}")
+            session.rollback()
+            continue
 
         for category_name, category_id in board_game_categories:
             sessiongame_category = session.get(BoardGameCategory, category_id)
