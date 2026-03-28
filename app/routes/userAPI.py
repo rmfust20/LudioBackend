@@ -19,7 +19,19 @@ from app.services.tokenService import create_access_token
 from app.services.userService import get_current_user, get_user_board_games, hash_password, verify_password
 from app.services.tokenService import new_refresh_token, hash_refresh_token
 from app.models.refreshToken import RefreshToken
+from app.services.appleAuthService import verify_apple_token
 from datetime import datetime, timezone, timedelta
+from pydantic import BaseModel
+
+
+class AppleAuthRequest(BaseModel):
+    identity_token: str
+
+
+class AppleCompleteRequest(BaseModel):
+    apple_id: str
+    username: str
+    email: str | None = None
 
 router = APIRouter(
     prefix="/users",
@@ -256,6 +268,69 @@ def get_win_rate_for_board_game(user_id: int, board_game_id: int, session: Sessi
 def get_user_profile_route(user_id: int, session: SessionDep):
     print("executing get_user_profile_route")
     return session.exec(select(UserBoardGame).where(UserBoardGame.id == user_id)).first()
+
+@router.post("/auth/apple")
+async def apple_auth(request: AppleAuthRequest, session: SessionDep):
+    try:
+        claims = await verify_apple_token(request.identity_token)
+    except Exception as e:
+        raise HTTPException(401, f"Invalid Apple identity token: {e}")
+
+    apple_id = claims["sub"]
+    email = claims.get("email")
+
+    existing = session.exec(select(UserBoardGame).where(UserBoardGame.apple_id == apple_id)).first()
+    if existing:
+        access = create_access_token(existing.id)
+        raw_refresh = new_refresh_token()
+        rt = RefreshToken(
+            user_id=existing.id,
+            token_hash=hash_refresh_token(raw_refresh),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=90),
+        )
+        session.add(rt)
+        session.commit()
+        return {
+            "access_token": access,
+            "refresh_token": raw_refresh,
+            "token_type": "bearer",
+            "user": {"id": existing.id, "username": existing.username},
+        }
+
+    # New Apple user — client must supply a username before account is created
+    return {"needs_username": True, "apple_id": apple_id, "email": email}
+
+@router.post("/auth/apple/complete")
+def apple_complete(request: AppleCompleteRequest, session: SessionDep):
+    if session.exec(select(UserBoardGame).where(UserBoardGame.username == request.username)).first():
+        raise HTTPException(400, "Username already taken")
+
+    user = UserBoardGame(
+        username=request.username,
+        email=request.email or "",
+        password_hash="",
+        apple_id=request.apple_id,
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    access = create_access_token(user.id)
+    raw_refresh = new_refresh_token()
+    rt = RefreshToken(
+        user_id=user.id,
+        token_hash=hash_refresh_token(raw_refresh),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=90),
+    )
+    session.add(rt)
+    session.commit()
+
+    return {
+        "access_token": access,
+        "refresh_token": raw_refresh,
+        "token_type": "bearer",
+        "user": {"id": user.id, "username": user.username},
+    }
 
 @router.delete("/deleteAccount")
 def delete_account(session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
