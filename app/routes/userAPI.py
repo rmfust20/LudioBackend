@@ -270,6 +270,10 @@ def get_user_profile_route(user_id: int, session: SessionDep):
     print("executing get_user_profile_route")
     return session.exec(select(UserBoardGame).where(UserBoardGame.id == user_id)).first()
 
+@router.get("/userProfiles", response_model=list[UserBoardGamePublic])
+def get_user_profiles(user_ids: list[int] = Query(), session: SessionDep = SessionDep):
+    return session.exec(select(UserBoardGame).where(UserBoardGame.id.in_(user_ids))).all()
+
 @router.post("/auth/apple")
 async def apple_auth(request: AppleAuthRequest, session: SessionDep):
     try:
