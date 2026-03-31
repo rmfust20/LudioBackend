@@ -6,7 +6,7 @@ from app.models import Review, BoardGameDesigner, BoardGameDesignerLink, BoardGa
 from sqlmodel import Session, select, func, join, case
 from app.models.gameNight import GameNight, GameNightPublic, GameNightImage, GameSessionHelper, GameNightCreate
 from app.models.gameNightUserLink import GameNightUserLink
-from app.models.user import UserBoardGameClientFacing
+from app.models.user import UserBoardGamePublic
 from app.models.gameSession import GameSession
 from app.models.gameSessionUserLink import GameSessionUserLink
 from app.models.userFriendLink import UserFriendLink
@@ -41,6 +41,7 @@ def get_game_night_feed(user_id: int, offset: int, session: SessionDep) -> list[
         .options(
             selectinload(GameNight.images),
             selectinload(GameNight.sessions).selectinload(GameSession.winners),
+            selectinload(GameNight.sessions).selectinload(GameSession.board_game),
             selectinload(GameNight.users)
         )
         .order_by(GameNight.game_night_date.desc())
@@ -57,17 +58,18 @@ def get_game_night_feed(user_id: int, offset: int, session: SessionDep) -> list[
             description=night.description,
             sessions=[
                 GameSessionHelper(
-                    board_game_id=game_session.board_game_id,
+                    board_game=game_session.board_game,
                     duration_minutes=game_session.duration_minutes,
                     winners_user_id=[winner.id for winner in game_session.winners]
                 )
                 for game_session in night.sessions
             ],
             images=[image.image_url for image in night.images],
-            users=[UserBoardGameClientFacing(id=user.id, username=user.username) for user in night.users]
+            users=[UserBoardGamePublic(id=user.id, username=user.username, profile_image_url=user.profile_image_url) for user in night.users]
         )
         result.append(night_public)
-    print(result)
+   
+    #ok so result is a list of GameNightPublic objects
     return result
 
 
@@ -78,6 +80,7 @@ def get_user_game_nights(user_id: int, session: SessionDep) -> list[GameNightPub
         .options(
             selectinload(GameNight.images),
             selectinload(GameNight.sessions).selectinload(GameSession.winners),
+            selectinload(GameNight.sessions).selectinload(GameSession.board_game),
             selectinload(GameNight.users)
         )
         .order_by(GameNight.id.desc())
@@ -91,14 +94,14 @@ def get_user_game_nights(user_id: int, session: SessionDep) -> list[GameNightPub
             description=night.description,
             sessions=[
                 GameSessionHelper(
-                    board_game_id=gs.board_game_id,
+                    board_game=gs.board_game,
                     duration_minutes=gs.duration_minutes,
                     winners_user_id=[w.id for w in gs.winners]
                 )
                 for gs in night.sessions
             ],
             images=[image.image_url for image in night.images],
-            users=[UserBoardGameClientFacing(id=u.id, username=u.username) for u in night.users]
+            users=[UserBoardGamePublic(id=u.id, username=u.username, profile_image_url=u.profile_image_url) for u in night.users]
         )
         for night in nights
     ]
@@ -110,6 +113,7 @@ def get_user_game_night(game_night_id: int, session: SessionDep) -> GameNightPub
         .options(
             selectinload(GameNight.images),
             selectinload(GameNight.sessions).selectinload(GameSession.winners),
+            selectinload(GameNight.sessions).selectinload(GameSession.board_game),
             selectinload(GameNight.users)
         )
     )
@@ -123,14 +127,14 @@ def get_user_game_night(game_night_id: int, session: SessionDep) -> GameNightPub
         description=night.description,
         sessions=[
             GameSessionHelper(
-                board_game_id=gs.board_game_id,
+                board_game=gs.board_game,
                 duration_minutes=gs.duration_minutes,
                 winners_user_id=[w.id for w in gs.winners]
             )
             for gs in night.sessions
         ],
         images=[image.image_url for image in night.images],
-        users=[UserBoardGameClientFacing(id=u.id, username=u.username) for u in night.users]
+        users=[UserBoardGamePublic(id=u.id, username=u.username, profile_image_url=u.profile_image_url) for u in night.users]
     )
 
 def delete_game_night(game_night_id: int, user_id: int, session: SessionDep) -> bool:

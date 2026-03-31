@@ -3,7 +3,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field, Relationship, SQLModel
 from datetime import date
 from app.models.gameNightUserLink import GameNightUserLink
-from app.models.user import UserBoardGameClientFacing
+from app.models.user import UserBoardGamePublic
+from app.models.boardGame import BoardGame
 
 if TYPE_CHECKING:
     # This only runs during static analysis (IDE/Mypy), not at runtime
@@ -35,7 +36,7 @@ class GameNightImage(SQLModel, table=True):
     #has images and sessions linked to it
 
 class GameSessionHelper(SQLModel):
-    board_game_id: int
+    board_game : BoardGame
     duration_minutes: int | None = None
     winners_user_id: list[int | None] = []
 
@@ -62,4 +63,4 @@ class GameNightPublic(SQLModel):
     description: Optional[str] = None
     sessions: List[GameSessionHelper] = []
     images: List[str] = []
-    users: List[UserBoardGameClientFacing] = []
+    users: List[UserBoardGamePublic] = []

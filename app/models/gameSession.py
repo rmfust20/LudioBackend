@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sqlmodel import Date, Field, Relationship, SQLModel
 from datetime import date
 from app.models.gameSessionUserLink import GameSessionUserLink
+from app.models.boardGame import BoardGame
 
 if TYPE_CHECKING:
     # This only runs during static analysis (IDE/Mypy), not at runtime
@@ -20,6 +21,7 @@ class GameSession(SQLModel, table=True):
     session_date: date | None = Field(default=None)
     game_night: "GameNight" = Relationship(back_populates="sessions")
     winners: list["UserBoardGame"] = Relationship(back_populates="won_sessions", link_model=GameSessionUserLink)
+    board_game: BoardGame = Relationship()
     #Subsection of GameNight, has images and users linked to it
 
 class GameSessionPublic(SQLModel):
