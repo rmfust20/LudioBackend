@@ -65,7 +65,7 @@ def get_game_night_feed(user_id: int, offset: int, session: SessionDep) -> list[
                 for game_session in night.sessions
             ],
             images=[image.image_url for image in night.images],
-            users=[UserBoardGamePublic(id=user.id, username=user.username, profile_image_url=user.profile_image_url) for user in night.users]
+            users=[UserBoardGamePublic(id=user.id, username=user.username, email=user.email, profile_image_url=user.profile_image_url) for user in night.users]
         )
         result.append(night_public)
    
@@ -101,7 +101,7 @@ def get_user_game_nights(user_id: int, session: SessionDep) -> list[GameNightPub
                 for gs in night.sessions
             ],
             images=[image.image_url for image in night.images],
-            users=[UserBoardGamePublic(id=u.id, username=u.username, profile_image_url=u.profile_image_url) for u in night.users]
+            users=[UserBoardGamePublic(id=u.id, username=u.username, email=u.email, profile_image_url=u.profile_image_url) for u in night.users]
         )
         for night in nights
     ]
@@ -134,7 +134,7 @@ def get_user_game_night(game_night_id: int, session: SessionDep) -> GameNightPub
             for gs in night.sessions
         ],
         images=[image.image_url for image in night.images],
-        users=[UserBoardGamePublic(id=u.id, username=u.username, profile_image_url=u.profile_image_url) for u in night.users]
+        users=[UserBoardGamePublic(id=u.id, username=u.username, email=u.email, profile_image_url=u.profile_image_url) for u in night.users]
     )
 
 def delete_game_night(game_night_id: int, user_id: int, session: SessionDep) -> bool:
