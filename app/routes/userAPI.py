@@ -1,9 +1,10 @@
 from requests import session
 
 from app.models import UserBoardGame, UserBoardGameCreate, UserBoardGamePublic, UserBoardGameUpdate, LoginRequest, UserFriendLink, UserBoardGameClientFacing
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from app.connection import SessionDep
 from fastapi import Depends, FastAPI, HTTPException, Query
+from app.utilities.limiter import limiter
 from sqlmodel import Field, Session, SQLModel, create_engine, insert, select, delete, func
 from app.connection import SessionDep
 from typing import Annotated
@@ -39,7 +40,8 @@ router = APIRouter(
 )
 
 @router.post("/register")
-def register_user(user: UserBoardGameCreate, session: SessionDep):
+@limiter.limit("5/minute")
+def register_user(request: Request, user: UserBoardGameCreate, session: SessionDep):
     existing = session.exec(select(UserBoardGame).where(UserBoardGame.username == user.username)).first()
     if existing:
         raise HTTPException(400, "Username already exists")
@@ -51,7 +53,8 @@ def register_user(user: UserBoardGameCreate, session: SessionDep):
     return {"id": user.id, "username": user.username}
 
 @router.post("/login")
-def login_user(login_request: LoginRequest, session: SessionDep):
+@limiter.limit("10/minute")
+def login_user(request: Request, login_request: LoginRequest, session: SessionDep):
     user = session.exec(select(UserBoardGame).where(UserBoardGame.username == login_request.username)).first()
     if not user or not verify_password(login_request.password, user.password_hash):
         raise HTTPException(401, "Invalid credentials")
@@ -75,7 +78,8 @@ def login_user(login_request: LoginRequest, session: SessionDep):
     }
 
 @router.post("/refresh")
-def refresh(refresh_token: str, session: SessionDep):
+@limiter.limit("20/minute")
+def refresh(request: Request, refresh_token: str, session: SessionDep):
     token_hash = hash_refresh_token(refresh_token)
 
     rt = session.exec(select(RefreshToken).where(RefreshToken.token_hash == token_hash)).first()
@@ -103,7 +107,8 @@ def refresh(refresh_token: str, session: SessionDep):
 
 
 @router.post("/logout")
-def logout(refresh_token: str, session: SessionDep):
+@limiter.limit("20/minute")
+def logout(request: Request, refresh_token: str, session: SessionDep):
     token_hash = hash_refresh_token(refresh_token)
     rt = session.exec(select(RefreshToken).where(RefreshToken.token_hash == token_hash)).first()
     if rt:
@@ -113,8 +118,9 @@ def logout(refresh_token: str, session: SessionDep):
     return {"ok": True}
 
 @router.post("/addFriend/{user_id}/{friend_id}")
-def add_friend(user_id: int, friend_id: int, session: SessionDep):
-    if user_id != user_id:
+@limiter.limit("20/hour")
+def add_friend(request: Request, user_id: int, friend_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+    if current_user.id != user_id:
         raise HTTPException(403, "Cannot add friend for another user")
     
     statement = insert(UserFriendLink).values(user_id=user_id, friend_user_id=friend_id)
@@ -123,7 +129,8 @@ def add_friend(user_id: int, friend_id: int, session: SessionDep):
     return {"message": "Friend added successfully"}
 
 @router.get("/pendingFriends/{user_id}", response_model=list[UserBoardGameClientFacing])
-def get_pending_friends(user_id: int, session: SessionDep):
+@limiter.limit("300/hour")
+def get_pending_friends(request: Request, user_id: int, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
     statement = (
         select(UserBoardGame)
         .join(UserFriendPending, UserBoardGame.id == UserFriendPending.incoming_friend_user_id)
@@ -133,7 +140,8 @@ def get_pending_friends(user_id: int, session: SessionDep):
     return [{"id": friend.id, "username": friend.username} for friend in pending_friends]
 
 @router.get("/sentFriendRequests/{user_id}", response_model=list[UserBoardGameClientFacing])
-def get_sent_friend_requests(user_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+@limiter.limit("300/hour")
+def get_sent_friend_requests(request: Request, user_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
     if current_user.id != user_id:
         raise HTTPException(403, "Cannot view another user's sent requests")
     statement = (
@@ -145,7 +153,8 @@ def get_sent_friend_requests(user_id: int, session: SessionDep, current_user: Us
     return [{"id": u.id, "username": u.username} for u in users]
 
 @router.post("/rejectFriend/{user_id}/{friend_id}")
-def reject_friend(user_id: int, friend_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+@limiter.limit("60/hour")
+def reject_friend(request: Request, user_id: int, friend_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
     if current_user.id != user_id:
         raise HTTPException(403, "Cannot reject friend for another user")
 
@@ -157,7 +166,8 @@ def reject_friend(user_id: int, friend_id: int, session: SessionDep, current_use
     return {"message": "Friend request rejected"}
 
 @router.post("/sendFriendRequest/{user_id}/{friend_id}")
-def send_friend_request(user_id: int, friend_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+@limiter.limit("20/hour")
+def send_friend_request(request: Request, user_id: int, friend_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
     if current_user.id != user_id:
         raise HTTPException(403, "Cannot send friend request for another user")
 
@@ -168,7 +178,8 @@ def send_friend_request(user_id: int, friend_id: int, session: SessionDep, curre
     return {"message": "Friend request sent"}
 
 @router.post("/acceptFriend/{user_id}/{friend_id}")
-def accept_friend(user_id: int, friend_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+@limiter.limit("60/hour")
+def accept_friend(request: Request, user_id: int, friend_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
     if current_user.id != user_id:
         raise HTTPException(403, "Cannot accept friend for another user")
 
@@ -184,7 +195,8 @@ def accept_friend(user_id: int, friend_id: int, session: SessionDep, current_use
     return {"message": "Friend request accepted"}
 
 @router.delete("/removeFriend/{user_id}/{friend_id}")
-def remove_friend(user_id: int, friend_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+@limiter.limit("60/hour")
+def remove_friend(request: Request, user_id: int, friend_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
     if current_user.id != user_id:
         raise HTTPException(403, "Cannot remove friend for another user")
 
@@ -194,7 +206,8 @@ def remove_friend(user_id: int, friend_id: int, session: SessionDep, current_use
     return {"message": "Friend removed"}
 
 @router.get("/friends/{user_id}", response_model=list[UserBoardGameClientFacing])
-def get_friends(user_id: int, session: SessionDep): 
+@limiter.limit("300/hour")
+def get_friends(request: Request, user_id: int, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
     statement = (
         select(UserBoardGame)
         .join(UserFriendLink, UserBoardGame.id == UserFriendLink.friend_user_id)
@@ -204,11 +217,13 @@ def get_friends(user_id: int, session: SessionDep):
     return [{"id": friend.id, "username": friend.username} for friend in friends]
 
 @router.get("/boardGames/{user_id}", response_model=list[BoardGame])
-def get_user_board_games_route(user_id: int, session: SessionDep):
+@limiter.limit("300/hour")
+def get_user_board_games_route(request: Request, user_id: int, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
     return get_user_board_games(user_id, session)
 
 @router.patch("/updateUser", response_model=UserBoardGamePublic)
-def update_user(updates: UserBoardGameUpdate, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+@limiter.limit("60/hour")
+def update_user(request: Request, updates: UserBoardGameUpdate, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
     if updates.profile_image_url is not None:
         current_user.profile_image_url = updates.profile_image_url
     if updates.username is not None:
@@ -224,13 +239,15 @@ def update_user(updates: UserBoardGameUpdate, session: SessionDep, current_user:
     return current_user
 
 @router.get("/search", response_model=list[UserBoardGameClientFacing])
-def search_users(username: str, session: SessionDep):
+@limiter.limit("300/hour")
+def search_users(request: Request, username: str, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
     statement = select(UserBoardGame).where(UserBoardGame.username.ilike(f"%{username}%")).limit(25)
     users = session.exec(statement).all()
     return [{"id": u.id, "username": u.username} for u in users]
 
 @router.get("/winRate/{user_id}")
-def get_win_rate(user_id: int, session: SessionDep):
+@limiter.limit("300/hour")
+def get_win_rate(request: Request, user_id: int, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
     # Total sessions at game nights the user attended
     attended_night_ids = select(GameNightUserLink.game_night_id).where(GameNightUserLink.user_id == user_id)
     total = session.exec(
@@ -247,7 +264,8 @@ def get_win_rate(user_id: int, session: SessionDep):
     return {"user_id": user_id, "wins": wins, "total_sessions": total, "win_rate": win_rate}
 
 @router.get("/winRate/{user_id}/{board_game_id}")
-def get_win_rate_for_board_game(user_id: int, board_game_id: int, session: SessionDep):
+@limiter.limit("300/hour")
+def get_win_rate_for_board_game(request: Request, user_id: int, board_game_id: int, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
     # Sessions of this specific game at nights the user attended
     attended_night_ids = select(GameNightUserLink.game_night_id).where(GameNightUserLink.user_id == user_id)
     total = session.exec(
@@ -266,18 +284,21 @@ def get_win_rate_for_board_game(user_id: int, board_game_id: int, session: Sessi
     return {"user_id": user_id, "board_game_id": board_game_id, "wins": wins, "total_sessions": total, "win_rate": win_rate}
 
 @router.get("/userProfile/{user_id}", response_model=UserBoardGamePublic)
-def get_user_profile_route(user_id: int, session: SessionDep):
+@limiter.limit("300/hour")
+def get_user_profile_route(request: Request, user_id: int, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
     print("executing get_user_profile_route")
     return session.exec(select(UserBoardGame).where(UserBoardGame.id == user_id)).first()
 
 @router.get("/userProfiles", response_model=list[UserBoardGamePublic])
-def get_user_profiles(user_ids: list[int] = Query(), session: SessionDep = SessionDep):
+@limiter.limit("60/hour")
+def get_user_profiles(request: Request, user_ids: list[int] = Query(), session: SessionDep = SessionDep, _: UserBoardGame = Depends(get_current_user)):
     return session.exec(select(UserBoardGame).where(UserBoardGame.id.in_(user_ids))).all()
 
 @router.post("/auth/apple")
-async def apple_auth(request: AppleAuthRequest, session: SessionDep):
+@limiter.limit("10/minute")
+async def apple_auth(request: Request, body: AppleAuthRequest, session: SessionDep):
     try:
-        claims = await verify_apple_token(request.identity_token)
+        claims = await verify_apple_token(body.identity_token)
     except Exception as e:
         raise HTTPException(401, f"Invalid Apple identity token: {e}")
 
@@ -306,15 +327,16 @@ async def apple_auth(request: AppleAuthRequest, session: SessionDep):
     return {"needs_username": True, "apple_id": apple_id, "email": email}
 
 @router.post("/auth/apple/complete")
-def apple_complete(request: AppleCompleteRequest, session: SessionDep):
-    if session.exec(select(UserBoardGame).where(UserBoardGame.username == request.username)).first():
+@limiter.limit("10/minute")
+def apple_complete(request: Request, body: AppleCompleteRequest, session: SessionDep):
+    if session.exec(select(UserBoardGame).where(UserBoardGame.username == body.username)).first():
         raise HTTPException(400, "Username already taken")
 
     user = UserBoardGame(
-        username=request.username,
-        email=request.email or "",
+        username=body.username,
+        email=body.email or "",
         password_hash="",
-        apple_id=request.apple_id,
+        apple_id=body.apple_id,
     )
     session.add(user)
     session.commit()
@@ -338,7 +360,8 @@ def apple_complete(request: AppleCompleteRequest, session: SessionDep):
     }
 
 @router.delete("/deleteAccount")
-def delete_account(session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+@limiter.limit("60/hour")
+def delete_account(request: Request, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
     user_id = current_user.id
 
     # Delete hosted game nights and all their children
@@ -388,11 +411,12 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 @router.post("/forgotPassword")
-def forgot_password(request: ForgotPasswordRequest, session: SessionDep):
+@limiter.limit("3/hour")
+def forgot_password(request: Request, body: ForgotPasswordRequest, session: SessionDep):
     import uuid, hashlib, os
     from azure.communication.email import EmailClient
 
-    user = session.exec(select(UserBoardGame).where(UserBoardGame.email == request.email)).first()
+    user = session.exec(select(UserBoardGame).where(UserBoardGame.email == body.email)).first()
     # Always return 200 so we don't leak whether an email is registered
     if not user:
         return {"message": "If that email is registered you will receive a reset link"}
@@ -429,9 +453,10 @@ def forgot_password(request: ForgotPasswordRequest, session: SessionDep):
     return {"message": "If that email is registered you will receive a reset link"}
 
 @router.post("/resetPassword")
-def reset_password(request: ResetPasswordRequest, session: SessionDep):
+@limiter.limit("5/minute")
+def reset_password(request: Request, body: ResetPasswordRequest, session: SessionDep):
     import hashlib
-    token_hash = hashlib.sha256(request.token.encode()).hexdigest()
+    token_hash = hashlib.sha256(body.token.encode()).hexdigest()
 
     reset_token = session.exec(
         select(PasswordResetToken).where(
@@ -449,7 +474,7 @@ def reset_password(request: ResetPasswordRequest, session: SessionDep):
     if not user:
         raise HTTPException(400, "Invalid or expired reset token")
 
-    user.password_hash = hash_password(request.new_password)
+    user.password_hash = hash_password(body.new_password)
     reset_token.used_at = datetime.now(timezone.utc)
     session.add(user)
     session.add(reset_token)

@@ -53,6 +53,7 @@ sentry-sdk==2.49.0
 shellingham==1.5.4
 six==1.17.0
 SQLAlchemy==2.0.45
+slowapi==0.1.9
 sqlmodel==0.0.31
 starlette==0.50.0
 typer==0.21.1

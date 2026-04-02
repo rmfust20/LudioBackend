@@ -7,6 +7,11 @@ import secrets
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
 JWT_ALG = "HS256"
 
+if os.getenv("JWT_SECRET"):
+    print("JWT_SECRET loaded from environment")
+else:
+    print("WARNING: JWT_SECRET not set, using insecure fallback")
+
 ACCESS_TTL_MIN = 15
 REFRESH_TTL_DAYS = 60
 

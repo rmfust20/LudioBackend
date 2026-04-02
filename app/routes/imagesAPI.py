@@ -2,7 +2,8 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query, Request
+from app.utilities.limiter import limiter
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient, ContentSettings, generate_blob_sas, BlobSasPermissions
 
@@ -26,9 +27,11 @@ def blob_service_client() -> BlobServiceClient:
     return BlobServiceClient(account_url=account_url, credential=credential)
 
 @router.post("/uploadSingular")
+@limiter.limit("30/hour")
 async def upload_image(
+    request: Request,
     file: UploadFile = File(...),
-    user_id: int = 1,
+    user: UserBoardGame = Depends(get_current_user),
 ):
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(415, f"Unsupported content type: {file.content_type}")
@@ -39,9 +42,8 @@ async def upload_image(
 
     container_name = "images"
 
-    # Choose a deterministic-ish path you can store in DB
     ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[file.content_type]
-    blob_name = f"users/{user_id}/{uuid.uuid4().hex}.{ext}"
+    blob_name = f"users/{user.id}/{uuid.uuid4().hex}.{ext}"
 
     bsc = blob_service_client()
     blob_client = bsc.get_blob_client(container=container_name, blob=blob_name)
@@ -58,7 +60,9 @@ async def upload_image(
     return {"blob_name": blob_name}
 
 @router.post("/upload", summary="Upload up to 5 images")
+@limiter.limit("30/hour")
 async def upload_images(
+    request: Request,
     files: list[UploadFile] = File(..., description="Up to 5 image files"),
     user: UserBoardGame = Depends(get_current_user)
 ):
@@ -101,7 +105,8 @@ async def upload_images(
     return {"count": len(uploaded), "uploads": uploaded}
 
 @router.get("/url")
-def get_image_url(blob_name: str):
+@limiter.limit("300/hour")
+def get_image_url(request: Request, blob_name: str, _: UserBoardGame = Depends(get_current_user)):
     ACCOUNT_NAME = "tabulususerimages"
     CONTAINER = "images"
     bsc = blob_service_client()
@@ -122,7 +127,8 @@ def get_image_url(blob_name: str):
     return {"url": f"https://{ACCOUNT_NAME}.blob.core.windows.net/{CONTAINER}/{blob_name}?{sas}"}
 
 @router.get("/urls")
-def get_image_urls(blob_names: list[str] = Query(...)):
+@limiter.limit("60/hour")
+def get_image_urls(request: Request, blob_names: list[str] = Query(...), _: UserBoardGame = Depends(get_current_user)):
     ACCOUNT_NAME = "tabulususerimages"
     CONTAINER = "images"
     bsc = blob_service_client()
