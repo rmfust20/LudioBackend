@@ -28,7 +28,6 @@ def create_board_games(session: SessionDep):
         while game_id in used_ids:
             game_id = random.randint(1,50000)
         used_ids.add(game_id)
-        print(f"Processing game ID: {game_id}")
         url = f"https://api.geekdo.com/xmlapi2/thing?id={game_id}&stats=1"
 
         bearer = os.getenv("bearer_token")
@@ -74,7 +73,6 @@ def create_board_games(session: SessionDep):
             if isinstance(links, dict):
                 links = [links]
         except Exception as e:
-            print(f"Skipping game {game_id} due to parse error: {e}")
             continue
 
         board_game_categories = []
@@ -107,7 +105,6 @@ def create_board_games(session: SessionDep):
             session.add(board_game)
             session.flush()
         except Exception as e:
-            print(f"Skipping game {game_id} due to DB error: {e}")
             session.rollback()
             continue
 

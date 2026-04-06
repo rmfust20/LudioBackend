@@ -23,7 +23,6 @@ router = APIRouter(
 @router.get("/userFeed/{user_id}", response_model=list[GameNightPublic])
 @limiter.limit("300/hour")
 def get_game_nights(request: Request, user_id: int, session: SessionDep, offset: int = 0, _: UserBoardGame = Depends(get_current_user)):
-    print("logging user id and offset", user_id, offset)
     feed = get_game_night_feed(user_id=user_id, offset=offset, session=session)
     return feed
 

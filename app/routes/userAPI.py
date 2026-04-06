@@ -117,17 +117,6 @@ def logout(request: Request, refresh_token: str, session: SessionDep):
         session.commit()
     return {"ok": True}
 
-@router.post("/addFriend/{user_id}/{friend_id}")
-@limiter.limit("20/hour")
-def add_friend(request: Request, user_id: int, friend_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
-    if current_user.id != user_id:
-        raise HTTPException(403, "Cannot add friend for another user")
-    
-    statement = insert(UserFriendLink).values(user_id=user_id, friend_user_id=friend_id)
-    session.exec(statement)
-    session.commit()
-    return {"message": "Friend added successfully"}
-
 @router.get("/pendingFriends/{user_id}", response_model=list[UserBoardGameClientFacing])
 @limiter.limit("300/hour")
 def get_pending_friends(request: Request, user_id: int, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
@@ -232,7 +221,6 @@ def update_user(request: Request, updates: UserBoardGameUpdate, session: Session
         current_user.email = updates.email
     if updates.password is not None:
         current_user.password_hash = hash_password(updates.password)
-    print(current_user)
     session.add(current_user)
     session.commit()
     session.refresh(current_user)
@@ -286,12 +274,11 @@ def get_win_rate_for_board_game(request: Request, user_id: int, board_game_id: i
 @router.get("/userProfile/{user_id}", response_model=UserBoardGamePublic)
 @limiter.limit("300/hour")
 def get_user_profile_route(request: Request, user_id: int, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
-    print("executing get_user_profile_route")
     return session.exec(select(UserBoardGame).where(UserBoardGame.id == user_id)).first()
 
 @router.get("/userProfiles", response_model=list[UserBoardGamePublic])
 @limiter.limit("60/hour")
-def get_user_profiles(request: Request, user_ids: list[int] = Query(), session: SessionDep = SessionDep, _: UserBoardGame = Depends(get_current_user)):
+def get_user_profiles(session: SessionDep, request: Request, user_ids: list[int] = Query(), _: UserBoardGame = Depends(get_current_user)):
     return session.exec(select(UserBoardGame).where(UserBoardGame.id.in_(user_ids))).all()
 
 @router.post("/auth/apple")
