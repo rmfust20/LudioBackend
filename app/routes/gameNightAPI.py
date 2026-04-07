@@ -12,6 +12,7 @@ from app.models import BoardGameDesignerLink
 from app.services import get_game_night_feed
 from app.services.gameNightService import add_game_night, get_user_game_night, get_user_game_nights, delete_game_night
 from app.models.user import UserBoardGame
+from app.models.report import Report
 from app.services.userService import get_current_user
 from app.utilities.limiter import limiter
 
@@ -58,3 +59,14 @@ def delete_game_night_route(request: Request, game_night_id: int, session: Sessi
     if not found:
         raise HTTPException(404, "Game night not found")
     return {"message": "Game night deleted"}
+
+@router.post("/reportGameNight/{game_night_id}")
+@limiter.limit("20/hour")
+def report_game_night(request: Request, game_night_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+    night = session.get(GameNight, game_night_id)
+    if not night:
+        raise HTTPException(404, "Game night not found")
+    report = Report(reporter_user_id=current_user.id, content_type="game_night", content_id=game_night_id)
+    session.add(report)
+    session.commit()
+    return {"message": "Game night reported"}

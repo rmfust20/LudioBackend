@@ -7,6 +7,7 @@ from app.models import Review, UserBoardGame, ReviewUpdate
 from app.services import reviewsService
 from app.services.userService import get_current_user
 from app.utilities.limiter import limiter
+from app.models.report import Report
 
 
 router = APIRouter(
@@ -79,6 +80,17 @@ def delete_review(request: Request, review_id: int, session: SessionDep, current
     session.delete(review)
     session.commit()
     return {"message": "Review deleted"}
+
+@router.post("/reportReview/{review_id}")
+@limiter.limit("20/hour")
+def report_review(request: Request, review_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+    review = session.get(Review, review_id)
+    if not review:
+        raise HTTPException(404, "Review not found")
+    report = Report(reporter_user_id=current_user.id, content_type="review", content_id=review_id)
+    session.add(report)
+    session.commit()
+    return {"message": "Review reported"}
 
 
 

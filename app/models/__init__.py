@@ -16,3 +16,4 @@ from .gameNightUserLink import GameNightUserLink
 from .gameSessionUserLink import GameSessionUserLink
 from .userFriendLink import UserFriendLink
 from .passwordResetToken import PasswordResetToken
+from .report import Report
