@@ -3,6 +3,7 @@ annotated-types==0.7.0
 anyio==4.12.1
 argon2-cffi==25.1.0
 argon2-cffi-bindings==25.1.0
+azure-communication-email==1.0.0
 azure-core==1.38.1
 azure-identity==1.25.2
 azure-storage-blob==12.28.0
