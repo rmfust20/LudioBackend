@@ -427,7 +427,7 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, session: Sess
     session.add(reset_token)
     session.commit()
 
-    reset_link = f"ludio://resetPassword?token={raw_token}"
+    reset_link = f"tabulus://resetPassword?token={raw_token}"
     client = EmailClient.from_connection_string(os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING"))
     client.begin_send({
         "senderAddress": os.getenv("AZURE_EMAIL_SENDER"),
