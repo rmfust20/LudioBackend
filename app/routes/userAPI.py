@@ -434,6 +434,7 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, session: Sess
         "content": {
             "subject": "Reset your Ludio password",
             "plainText": f"Tap the link to reset your password. It expires in 30 minutes.\n\ntabulus://resetPassword?token={raw_token}",
+            "html": f"<p>Tap the link to reset your password. It expires in 30 minutes.</p><p><a href=\"tabulus://resetPassword?token={raw_token}\">Reset Password</a></p>",
         },
     })
 
