@@ -397,6 +397,11 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
 
+@router.get("/resetPassword")
+def redirect_reset_password(token: str):
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"tabulus://resetPassword?token={token}")
+
 @router.post("/forgotPassword")
 @limiter.limit("3/hour")
 def forgot_password(request: Request, body: ForgotPasswordRequest, session: SessionDep):
@@ -433,8 +438,7 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, session: Sess
         "recipients": {"to": [{"address": user.email}]},
         "content": {
             "subject": "Reset your Ludio password",
-            "plainText": f"Tap the link to reset your password. It expires in 30 minutes.\n\ntabulus://resetPassword?token={raw_token}",
-            "html": f"<p>Tap the link to reset your password. It expires in 30 minutes.</p><p><a href=\"tabulus://resetPassword?token={raw_token}\">Reset Password</a></p>",
+            "plainText": f"Tap the link to reset your password. It expires in 30 minutes.\n\nhttps://tabulusapp.bravegrass-0afbc7b6.westus2.azurecontainerapps.io/users/resetPassword?token={raw_token}",
         },
     })
 
