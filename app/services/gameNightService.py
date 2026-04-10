@@ -21,7 +21,7 @@ def get_game_night_profile(user_id: int, offset: int, session: SessionDep) -> li
         )
         .order_by(GameNight.id.desc())
         .offset(offset)
-        .limit(25)
+        .limit(10)
     )
 
     nights = session.exec(stmt).unique().all()
@@ -46,7 +46,7 @@ def get_game_night_feed(user_id: int, offset: int, session: SessionDep) -> list[
         )
         .order_by(GameNight.id.desc())
         .offset(offset)
-        .limit(25)
+        .limit(10)
     )
     nights = session.exec(stmt).unique().all()
     result = []
