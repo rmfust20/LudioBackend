@@ -70,7 +70,7 @@ def edit_review_for_board_game(request: Request, review_id: int, updated_review:
 
     return existing_review
 
-@router.get("/userBoardGame/{user_id}/{board_game_id}", response_model=ReviewPublic | None)
+@router.get("/userBoardGame/{user_id}/{board_game_id}", response_model=Review | None)
 @limiter.limit("300/hour")
 def get_user_review_for_board_game(request: Request, user_id: int, board_game_id: int, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
     statement = (
