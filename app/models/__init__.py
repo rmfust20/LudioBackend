@@ -17,3 +17,4 @@ from .gameSessionUserLink import GameSessionUserLink
 from .userFriendLink import UserFriendLink
 from .passwordResetToken import PasswordResetToken
 from .report import Report
+from .hotBoardGame import HotBoardGame

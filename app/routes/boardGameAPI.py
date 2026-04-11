@@ -9,6 +9,7 @@ from app.services import reviewsService, feedService, get_general_trending_feed
 from app.models import BoardGameDesigner
 from app.models import BoardGameDesignerLink
 from app.services.boardGameService import get_trending_with_friends_feed
+from app.models.hotBoardGame import HotBoardGame
 from app.models.user import UserBoardGame
 from app.services.userService import get_current_user
 from app.utilities.limiter import limiter
@@ -87,6 +88,18 @@ def get_board_games_by_ids(request: Request, session: SessionDep, board_game_ids
     statement = select(BoardGame).where(BoardGame.id.in_(board_game_ids)).order_by(BoardGame.id)
     board_games = session.exec(statement).all()
     return board_games
+
+@router.get("/hot", response_model=list[BoardGame])
+@limiter.limit("300/hour")
+def get_hot_board_games_feed(request: Request, session: SessionDep, offset: int = 0, limit: Annotated[int, Query(le=50)] = 25, _: UserBoardGame = Depends(get_current_user)):
+    statement = (
+        select(BoardGame)
+        .join(HotBoardGame, HotBoardGame.board_game_id == BoardGame.id)
+        .order_by(HotBoardGame.rank)
+        .offset(offset)
+        .limit(limit)
+    )
+    return session.exec(statement).all()
 
 #trigger build
 
