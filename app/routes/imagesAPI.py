@@ -138,8 +138,8 @@ def get_image_urls(request: Request, blob_names: list[str] = Query(...), _: User
         key_start_time=now - timedelta(minutes=5),
         key_expiry_time=now + timedelta(hours=1),
     )
-    urls = []
-    for blob_name in blob_names:
+    urls = {}
+    for blob_name in set(blob_names):
         sas = generate_blob_sas(
             account_name=ACCOUNT_NAME,
             container_name=CONTAINER,
@@ -148,5 +148,5 @@ def get_image_urls(request: Request, blob_names: list[str] = Query(...), _: User
             permission=BlobSasPermissions(read=True),
             expiry=now + timedelta(hours=1),
         )
-        urls.append(f"https://{ACCOUNT_NAME}.blob.core.windows.net/{CONTAINER}/{blob_name}?{sas}")
+        urls[blob_name] = f"https://{ACCOUNT_NAME}.blob.core.windows.net/{CONTAINER}/{blob_name}?{sas}"
     return {"urls": urls}
