@@ -8,8 +8,8 @@ if TYPE_CHECKING:
     from app.models.gameNight import GameNight
 
 class UserBoardGameBase(SQLModel):
-    username: str = Field(index=True, sa_column_kwargs={"unique": True})
-    email: str = Field(index = True)
+    username: str = Field(index=True, max_length=50, sa_column_kwargs={"unique": True})
+    email: str = Field(index=True, max_length=254)
     profile_image_url: str | None = None
 
 class UserBoardGame(UserBoardGameBase,table=True):
@@ -25,12 +25,12 @@ class UserBoardGamePublic(SQLModel):
     profile_image_url: str | None = None
 
 class UserBoardGameCreate(UserBoardGameBase):
-    password : str
+    password: str = Field(min_length=8, max_length=128)
 
 class UserBoardGameUpdate(SQLModel):
-    username: str | None = None
-    email: str | None = None
-    password: str | None = None
+    username: str | None = Field(default=None, max_length=50)
+    email: str | None = Field(default=None, max_length=254)
+    password: str | None = Field(default=None, min_length=8, max_length=128)
     profile_image_url: str | None = None
 
 class UserBoardGameClientFacing(SQLModel):

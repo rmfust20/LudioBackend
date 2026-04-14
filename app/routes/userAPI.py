@@ -129,7 +129,9 @@ def logout(request: Request, session: SessionDep, body: RefreshTokenRequest | No
 
 @router.get("/pendingFriends/{user_id}", response_model=list[UserBoardGameClientFacing])
 @limiter.limit("300/hour")
-def get_pending_friends(request: Request, user_id: int, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
+def get_pending_friends(request: Request, user_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+    if current_user.id != user_id:
+        raise HTTPException(403, "Cannot view another user's pending friends")
     statement = (
         select(UserBoardGame)
         .join(UserFriendPending, UserBoardGame.id == UserFriendPending.incoming_friend_user_id)
@@ -297,7 +299,7 @@ async def apple_auth(request: Request, body: AppleAuthRequest, session: SessionD
     try:
         claims = await verify_apple_token(body.identity_token)
     except Exception as e:
-        raise HTTPException(401, f"Invalid Apple identity token: {e}")
+        raise HTTPException(401, "Invalid Apple identity token")
 
     apple_id = claims["sub"]
     email = claims.get("email")

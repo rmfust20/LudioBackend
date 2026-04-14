@@ -13,14 +13,14 @@ class Review(SQLModel, table=True):
     user_id: int = Field(foreign_key="userboardgame.id", index=True)
     username: str = Field(index=True)
     rating: int | None = Field(default=None)
-    comment: str | None = Field(default=None)
+    comment: str | None = Field(default=None, max_length=5000)
     date_created: str | None = Field(default=None)
 
     user: "UserBoardGame" = Relationship()
 
 class ReviewUpdate(SQLModel):
     rating: int | None = Field(default=None)
-    comment: str | None = Field(default=None)
+    comment: str | None = Field(default=None, max_length=5000)
     date_created: str | None = Field(default=None)
 
 class ReviewPublic(SQLModel):

@@ -4,7 +4,9 @@ from jose import jwt
 import hashlib
 import secrets
 
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET environment variable is not set")
 JWT_ALG = "HS256"
 
 

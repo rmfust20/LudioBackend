@@ -3,7 +3,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 class Comment(SQLModel):
     id: int | None = Field(default=None, primary_key=True)
     author_id: int = Field(foreign_key="user.id", index=True)
-    content: str = Field(default="")
+    content: str = Field(default="", max_length=5000)
     parent_comment_id: int | None = Field(default=None, foreign_key="comment.id", index=True)
 
 class GameNightComment(Comment, table=True):

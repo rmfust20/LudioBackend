@@ -17,7 +17,7 @@ class GameNight(SQLModel, table=True):
     host_user_id: int = Field(foreign_key="userboardgame.id", index=True)
 
     game_night_date: date | None = Field(default=None)
-    description: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None, max_length=2000)
 
     # IMPORTANT: default_factory=list
     sessions: list["GameSession"] = Relationship(back_populates="game_night")
@@ -47,7 +47,7 @@ class GameSessionCreate(SQLModel):
 
 class GameNightCreate(SQLModel):
     host_user_id: int
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=2000)
     images: list[str] = []
     sessions: list[GameSessionCreate] = []
     users: list[int] = []

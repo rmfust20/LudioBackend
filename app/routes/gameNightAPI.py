@@ -71,8 +71,8 @@ def delete_game_night_route(request: Request, game_night_id: int, session: Sessi
         found = delete_game_night(game_night_id, current_user.id, session)
     except ValueError:
         raise HTTPException(403, "Not authorized to delete this game night")
-    except RuntimeError as e:
-        raise HTTPException(500, str(e))
+    except RuntimeError:
+        raise HTTPException(500, "Internal server error")
     if not found:
         raise HTTPException(404, "Game night not found")
     return {"message": "Game night deleted"}
