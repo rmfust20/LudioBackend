@@ -50,6 +50,11 @@ def register_user(request: Request, user: UserBoardGameCreate, session: SessionD
     if existing:
         raise HTTPException(400, "Username already exists")
 
+    if user.email:
+        existing_email = session.exec(select(UserBoardGame).where(UserBoardGame.email == user.email)).first()
+        if existing_email:
+            raise HTTPException(400, "Email already in use")
+
     user = UserBoardGame(username=user.username, password_hash=hash_password(user.password), email=user.email)
     session.add(user)
     session.commit()
@@ -449,7 +454,7 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, session: Sess
         "senderAddress": os.getenv("AZURE_EMAIL_SENDER"),
         "recipients": {"to": [{"address": user.email}]},
         "content": {
-            "subject": "Reset your Ludio password",
+            "subject": "Reset your Tabulus password",
             "plainText": f"Tap the link to reset your password. It expires in 30 minutes.\n\nhttps://tabulusapp.bravegrass-0afbc7b6.westus2.azurecontainerapps.io/users/resetPassword?token={raw_token}",
         },
     })
