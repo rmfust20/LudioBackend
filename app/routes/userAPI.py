@@ -511,6 +511,11 @@ def create_invite(request: Request, session: SessionDep, current_user: UserBoard
 
     return {"token": raw_token, "expires_in_days": 7}
 
+@router.get("/invite/{token}")
+def redirect_invite(token: str):
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"Tabulus://invite?token={token}")
+
 @router.post("/invite/accept")
 @limiter.limit("30/hour")
 def accept_invite(request: Request, token: str, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
