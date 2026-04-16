@@ -44,7 +44,7 @@ def apple_app_site_association():
                 "apps": [],
                 "details": [
                     {
-                        "appID": "FZ8JM6H768.robertm.boardGameReview",
+                        "appID": "FZ8JM6H768.com.robertm.boardGameReview",
                         "paths": ["/users/invite/*"],
                     }
                 ],
