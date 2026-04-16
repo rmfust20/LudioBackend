@@ -11,6 +11,7 @@ from typing import Annotated
 from app.models.boardGame import BoardGame
 from app.models.user import UserBoardGameBase
 from app.models.userFriendsPending import UserFriendPending
+from app.models.userBlockLink import UserBlockLink
 from app.models.gameNightUserLink import GameNightUserLink
 from app.models.gameSessionUserLink import GameSessionUserLink
 from app.models.gameNight import GameNight, GameNightImage
@@ -287,6 +288,24 @@ def get_win_rate_for_board_game(request: Request, user_id: int, board_game_id: i
     win_rate = round(wins / total, 4) if total > 0 else 0.0
     return {"user_id": user_id, "board_game_id": board_game_id, "wins": wins, "total_sessions": total, "win_rate": win_rate}
 
+@router.post("/block/{blocked_user_id}")
+@limiter.limit("60/hour")
+def block_user(request: Request, blocked_user_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
+    if current_user.id == blocked_user_id:
+        raise HTTPException(400, "Cannot block yourself")
+    existing = session.get(UserBlockLink, (current_user.id, blocked_user_id))
+    if existing:
+        return {"message": "User already blocked"}
+    session.add(UserBlockLink(user_id=current_user.id, blocked_user_id=blocked_user_id))
+    # Remove friendship in both directions if it exists
+    session.exec(delete(UserFriendLink).where(UserFriendLink.user_id == current_user.id, UserFriendLink.friend_user_id == blocked_user_id))
+    session.exec(delete(UserFriendLink).where(UserFriendLink.user_id == blocked_user_id, UserFriendLink.friend_user_id == current_user.id))
+    # Remove any pending friend requests in both directions
+    session.exec(delete(UserFriendPending).where(UserFriendPending.user_id == current_user.id, UserFriendPending.incoming_friend_user_id == blocked_user_id))
+    session.exec(delete(UserFriendPending).where(UserFriendPending.user_id == blocked_user_id, UserFriendPending.incoming_friend_user_id == current_user.id))
+    session.commit()
+    return {"message": "User blocked"}
+
 @router.get("/gameNightsHosted/{user_id}")
 @limiter.limit("300/hour")
 def get_game_nights_hosted_count(request: Request, user_id: int, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
@@ -497,4 +516,5 @@ def reset_password(request: Request, body: ResetPasswordRequest, session: Sessio
     session.commit()
 
     return {"message": "Password reset successfully"}
+
 

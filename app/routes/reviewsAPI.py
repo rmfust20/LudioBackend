@@ -9,6 +9,7 @@ from app.services import reviewsService
 from app.services.userService import get_current_user
 from app.utilities.limiter import limiter
 from app.models.report import Report
+from app.models.userBlockLink import UserBlockLink
 
 
 router = APIRouter(
@@ -17,10 +18,12 @@ router = APIRouter(
 
 @router.get("/boardGame/{board_game_id}", response_model=list[ReviewPublic])
 @limiter.limit("300/hour")
-def read_reviews_by_board_game_name(request: Request, board_game_id, session: SessionDep, limit = 20, offset: int = 0, _: UserBoardGame = Depends(get_current_user)):
+def read_reviews_by_board_game_name(request: Request, board_game_id, session: SessionDep, limit = 20, offset: int = 0, current_user: UserBoardGame = Depends(get_current_user)):
+    blocked_ids = select(UserBlockLink.blocked_user_id).where(UserBlockLink.user_id == current_user.id)
     statement = (
         select(Review)
         .where(Review.board_game_id == board_game_id)
+        .where(Review.user_id.notin_(blocked_ids))
         .options(selectinload(Review.user))
         .order_by(Review.id.desc())
         .offset(offset)
