@@ -103,7 +103,14 @@ def register_user(request: Request, user: UserBoardGameCreate, session: SessionD
 @router.post("/login")
 @limiter.limit("10/minute")
 def login_user(request: Request, login_request: LoginRequest, session: SessionDep):
-    user = session.exec(select(UserBoardGame).where(UserBoardGame.username == login_request.username)).first()
+    if not login_request.username and not login_request.email:
+        raise HTTPException(400, "Username or email is required")
+
+    if login_request.email:
+        user = session.exec(select(UserBoardGame).where(UserBoardGame.email == login_request.email)).first()
+    else:
+        user = session.exec(select(UserBoardGame).where(UserBoardGame.username == login_request.username)).first()
+
     if not user or not verify_password(login_request.password, user.password_hash):
         raise HTTPException(401, "Invalid credentials")
     
