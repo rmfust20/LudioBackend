@@ -81,14 +81,25 @@ router = APIRouter(
 @router.post("/register")
 @limiter.limit("5/minute")
 def register_user(request: Request, user: UserBoardGameCreate, session: SessionDep):
+    if "@" in user.username:
+        raise HTTPException(400, "Username cannot contain '@'")
+
     existing = session.exec(select(UserBoardGame).where(UserBoardGame.username == user.username)).first()
     if existing:
         raise HTTPException(400, "Username already exists")
+
+    existing_as_email = session.exec(select(UserBoardGame).where(UserBoardGame.email == user.username)).first()
+    if existing_as_email:
+        raise HTTPException(400, "Username already in use as another user's email")
 
     if user.email:
         existing_email = session.exec(select(UserBoardGame).where(UserBoardGame.email == user.email)).first()
         if existing_email:
             raise HTTPException(400, "Email already in use")
+
+        existing_email_as_username = session.exec(select(UserBoardGame).where(UserBoardGame.username == user.email)).first()
+        if existing_email_as_username:
+            raise HTTPException(400, "Email already in use as another user's username")
 
     user = UserBoardGame(username=user.username, password_hash=hash_password(user.password), email=user.email)
     session.add(user)
@@ -103,13 +114,12 @@ def register_user(request: Request, user: UserBoardGameCreate, session: SessionD
 @router.post("/login")
 @limiter.limit("10/minute")
 def login_user(request: Request, login_request: LoginRequest, session: SessionDep):
-    if not login_request.username and not login_request.email:
-        raise HTTPException(400, "Username or email is required")
-
-    if login_request.email:
-        user = session.exec(select(UserBoardGame).where(UserBoardGame.email == login_request.email)).first()
-    else:
-        user = session.exec(select(UserBoardGame).where(UserBoardGame.username == login_request.username)).first()
+    identifier = login_request.username
+    user = session.exec(
+        select(UserBoardGame).where(
+            (UserBoardGame.username == identifier) | (UserBoardGame.email == identifier)
+        )
+    ).first()
 
     if not user or not verify_password(login_request.password, user.password_hash):
         raise HTTPException(401, "Invalid credentials")
