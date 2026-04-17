@@ -22,6 +22,7 @@ from app.services.userService import get_current_user, get_user_board_games, has
 from app.services.tokenService import new_refresh_token, hash_refresh_token
 from app.models.refreshToken import RefreshToken
 from app.models.passwordResetToken import PasswordResetToken
+from app.models.emailVerificationToken import EmailVerificationToken
 from app.services.appleAuthService import verify_apple_token
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel
@@ -38,6 +39,38 @@ class AppleCompleteRequest(BaseModel):
     apple_id: str
     username: str
     email: str | None = None
+
+def _send_verification_email(user_id: int, email: str, session: SessionDep):
+    import uuid, hashlib, os
+    from azure.communication.email import EmailClient
+
+    raw_token = str(uuid.uuid4())
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+    session.exec(
+        delete(EmailVerificationToken).where(
+            EmailVerificationToken.user_id == user_id,
+            EmailVerificationToken.used_at == None,
+        )
+    )
+
+    verification_token = EmailVerificationToken(
+        user_id=user_id,
+        token_hash=token_hash,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+    )
+    session.add(verification_token)
+    session.commit()
+
+    client = EmailClient.from_connection_string(os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING"))
+    client.begin_send({
+        "senderAddress": os.getenv("AZURE_EMAIL_SENDER"),
+        "recipients": {"to": [{"address": email}]},
+        "content": {
+            "subject": "Verify your Tabulus email",
+            "plainText": f"Tap the link to verify your email. It expires in 24 hours.\n\nhttps://tabulusapp.bravegrass-0afbc7b6.westus2.azurecontainerapps.io/users/verifyEmail?token={raw_token}",
+        },
+    })
 
 router = APIRouter(
     prefix="/users",
@@ -59,6 +92,10 @@ def register_user(request: Request, user: UserBoardGameCreate, session: SessionD
     session.add(user)
     session.commit()
     session.refresh(user)
+
+    if user.email:
+        _send_verification_email(user.id, user.email, session)
+
     return {"id": user.id, "username": user.username}
 
 @router.post("/login")
@@ -433,6 +470,51 @@ def delete_account(request: Request, session: SessionDep, current_user: UserBoar
     session.commit()
     return {"message": "Account deleted"}
 
+@router.get("/verifyEmail")
+def verify_email(token: str, session: SessionDep):
+    import hashlib
+    from fastapi.responses import RedirectResponse
+
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+    verification = session.exec(
+        select(EmailVerificationToken).where(
+            EmailVerificationToken.token_hash == token_hash,
+            EmailVerificationToken.used_at == None,
+        )
+    ).first()
+
+    if not verification:
+        raise HTTPException(400, "Invalid or expired verification token")
+    if verification.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        raise HTTPException(400, "Invalid or expired verification token")
+
+    user = session.get(UserBoardGame, verification.user_id)
+    if not user:
+        raise HTTPException(400, "Invalid or expired verification token")
+
+    user.email_verified = True
+    verification.used_at = datetime.now(timezone.utc)
+    session.add(user)
+    session.add(verification)
+    session.commit()
+
+    return RedirectResponse(url="tabulus://emailVerified")
+
+class ResendVerificationRequest(BaseModel):
+    email: str
+
+@router.post("/resendVerification")
+@limiter.limit("3/hour")
+def resend_verification(request: Request, body: ResendVerificationRequest, session: SessionDep):
+    user = session.exec(select(UserBoardGame).where(UserBoardGame.email == body.email)).first()
+    if not user or user.email_verified:
+        return {"message": "If that email is registered and unverified, a verification link has been sent"}
+
+    _send_verification_email(user.id, user.email, session)
+
+    return {"message": "If that email is registered and unverified, a verification link has been sent"}
+
 class ForgotPasswordRequest(BaseModel):
     email: str
 
@@ -455,6 +537,9 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, session: Sess
     # Always return 200 so we don't leak whether an email is registered
     if not user:
         return {"message": "If that email is registered you will receive a reset link"}
+
+    if not user.email_verified:
+        raise HTTPException(403, "Email not verified. Please verify your email before resetting your password.")
 
     raw_token = str(uuid.uuid4())
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()

@@ -16,6 +16,7 @@ class UserBoardGame(UserBoardGameBase,table=True):
     id: int | None = Field(default=None, primary_key=True)
     password_hash: str = Field(default="")
     apple_id: str | None = Field(default=None, sa_column_kwargs={"unique": True, "nullable": True}, index=True)
+    email_verified: bool = Field(default=False)
     won_sessions: list["GameSession"] = Relationship(back_populates="winners", link_model=GameSessionUserLink)
     game_nights: list["GameNight"] = Relationship(link_model=GameNightUserLink, back_populates="users")
 

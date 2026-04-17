@@ -20,10 +20,12 @@ router = APIRouter(
 @limiter.limit("300/hour")
 def read_reviews_by_board_game_name(request: Request, board_game_id, session: SessionDep, limit = 20, offset: int = 0, current_user: UserBoardGame = Depends(get_current_user)):
     blocked_ids = select(UserBlockLink.blocked_user_id).where(UserBlockLink.user_id == current_user.id)
+    blocked_by_ids = select(UserBlockLink.user_id).where(UserBlockLink.blocked_user_id == current_user.id)
     statement = (
         select(Review)
         .where(Review.board_game_id == board_game_id)
         .where(Review.user_id.notin_(blocked_ids))
+        .where(Review.user_id.notin_(blocked_by_ids))
         .options(selectinload(Review.user))
         .order_by(Review.id.desc())
         .offset(offset)

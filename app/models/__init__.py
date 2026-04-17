@@ -20,3 +20,4 @@ from .report import Report
 from .hotBoardGame import HotBoardGame
 from .inviteToken import InviteToken
 from .userBlockLink import UserBlockLink
+from .emailVerificationToken import EmailVerificationToken
