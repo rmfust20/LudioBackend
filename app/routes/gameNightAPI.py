@@ -82,7 +82,7 @@ def delete_game_night_route(request: Request, game_night_id: int, session: Sessi
 def get_recent_game_nights_with_images(request: Request, user_id: int, session: SessionDep, current_user: UserBoardGame = Depends(get_current_user)):
     if not is_friend_or_self(current_user.id, user_id, session):
         raise HTTPException(403, "You must be friends with this user to view their game nights")
-    return get_user_recent_game_nights_with_images(user_id, session)
+    return get_user_recent_game_nights_with_images(user_id, session, current_user_id=current_user.id)
 
 @router.post("/reportGameNight/{game_night_id}")
 @limiter.limit("20/hour")

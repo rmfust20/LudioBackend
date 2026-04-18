@@ -149,10 +149,15 @@ def get_user_game_night(game_night_id: int, session: SessionDep) -> GameNightPub
         users=[UserBoardGamePublic(id=u.id, username=u.username, email=u.email, profile_image_url=u.profile_image_url) for u in night.users]
     )
 
-def get_user_recent_game_nights_with_images(user_id: int, session: SessionDep) -> list[GameNightPublic]:
+def get_user_recent_game_nights_with_images(user_id: int, session: SessionDep, current_user_id: int | None = None) -> list[GameNightPublic]:
+    reported_ids = select(Report.content_id).where(
+        Report.reporter_user_id == (current_user_id or user_id),
+        Report.content_type == "game_night",
+    )
     stmt = (
         select(GameNight)
         .where(GameNight.host_user_id == user_id)
+        .where(GameNight.id.notin_(reported_ids))
         .where(GameNight.images.any())
         .options(
             selectinload(GameNight.images),
