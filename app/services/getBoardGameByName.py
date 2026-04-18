@@ -96,6 +96,10 @@ def get_board_game_from_bgg_by_name(name_query: str, session: SessionDep) -> lis
 
 
 def get_board_game_from_bgg_by_id(game_id: int, session: SessionDep) -> BoardGame | None:
+    existing = session.get(BoardGame, game_id)
+    if existing:
+        return existing.model_dump()
+
     load_dotenv()
     url = f"https://api.geekdo.com/xmlapi2/thing?id={game_id}&stats=1"
 
