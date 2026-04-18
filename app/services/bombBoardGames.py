@@ -4,7 +4,7 @@
 import time
 from sqlmodel import Session
 
-from app.services.getBoardGameByName import get_board_game_by_name
+from app.services.getBoardGameByName import get_board_game_from_bgg_by_name
 
 
 SLEEP_BETWEEN_GAMES = 10  # seconds
@@ -486,7 +486,7 @@ def bomb_board_games(session: Session) -> int:
         print(f"[bomb] {i}/{len(POPULAR_GAMES)} — looking up '{name}'")
 
         try:
-            results = get_board_game_by_name(name, session)
+            results = get_board_game_from_bgg_by_name(name, session)
             if results:
                 added += 1
                 print(f"[bomb]   found/added '{name}'")

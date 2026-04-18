@@ -57,7 +57,10 @@ def get_board_game_from_bgg_by_name(name_query: str, session: SessionDep) -> lis
     relevancy_list = []
     
     #items["item"] is a list of all the dicts that we need to check
-    for item_dict in items["item"]:
+    item_list_raw = items["item"]
+    if isinstance(item_list_raw, dict):
+        item_list_raw = [item_list_raw]
+    for item_dict in item_list_raw:
         id = item_dict["@id"]
         name = item_dict["name"]
 
@@ -186,14 +189,15 @@ def get_board_game_from_bgg_by_id(game_id: int, session: SessionDep) -> BoardGam
             session.add(sessiongame_category)
             session.flush()
             
-        link = BoardGameCategoryLink(
-                board_game_id = game_id,
-                category_id = category_id
-            )
-
-        link = BoardGameCategoryLink.model_validate(link)
-        session.add(link)
-        session.flush()
+        existing_link = session.get(BoardGameCategoryLink, (game_id, category_id))
+        if not existing_link:
+            link = BoardGameCategoryLink(
+                    board_game_id = game_id,
+                    category_id = category_id
+                )
+            link = BoardGameCategoryLink.model_validate(link)
+            session.add(link)
+            session.flush()
         
     for mechanic_name, mechanic_id in board_game_mechanics:
         sessiongame_mechanic = session.get(BoardGameMechanic, mechanic_id)
@@ -206,14 +210,15 @@ def get_board_game_from_bgg_by_id(game_id: int, session: SessionDep) -> BoardGam
             session.add(sessiongame_mechanic)
             session.flush()
             
-        link = BoardGameMechanicLink(
-                board_game_id = game_id,
-                mechanic_id = mechanic_id
-            )
-
-        link = BoardGameMechanicLink.model_validate(link)
-        session.add(link)
-        session.flush()
+        existing_link = session.get(BoardGameMechanicLink, (game_id, mechanic_id))
+        if not existing_link:
+            link = BoardGameMechanicLink(
+                    board_game_id = game_id,
+                    mechanic_id = mechanic_id
+                )
+            link = BoardGameMechanicLink.model_validate(link)
+            session.add(link)
+            session.flush()
 
     for designer_name, designer_id in board_game_designers:
         session_designer = session.get(BoardGameDesigner, designer_id)
@@ -226,14 +231,15 @@ def get_board_game_from_bgg_by_id(game_id: int, session: SessionDep) -> BoardGam
             session.add(session_designer)
             session.flush()
             
-        link = BoardGameDesignerLink(
-                board_game_id = game_id,
-                designer_id = designer_id
-            )
-
-        link = BoardGameDesignerLink.model_validate(link)
-        session.add(link)
-        session.flush()
+        existing_link = session.get(BoardGameDesignerLink, (game_id, designer_id))
+        if not existing_link:
+            link = BoardGameDesignerLink(
+                    board_game_id = game_id,
+                    designer_id = designer_id
+                )
+            link = BoardGameDesignerLink.model_validate(link)
+            session.add(link)
+            session.flush()
         
     for publisher_name, publisher_id in publishers:
         session_publisher = session.get(Publisher, publisher_id)
@@ -246,14 +252,15 @@ def get_board_game_from_bgg_by_id(game_id: int, session: SessionDep) -> BoardGam
             session.add(session_publisher)
             session.flush()
             
-        link = BoardGamePublisherLink(
-                board_game_id = game_id,
-                publisher_id = publisher_id
-            )
-
-        link = BoardGamePublisherLink.model_validate(link)
-        session.add(link)
-        session.flush()
+        existing_link = session.get(BoardGamePublisherLink, (game_id, publisher_id))
+        if not existing_link:
+            link = BoardGamePublisherLink(
+                    board_game_id = game_id,
+                    publisher_id = publisher_id
+                )
+            link = BoardGamePublisherLink.model_validate(link)
+            session.add(link)
+            session.flush()
 
     
     board_game_dict = board_game.model_dump()
