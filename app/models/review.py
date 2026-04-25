@@ -40,7 +40,7 @@ class ReviewPublicTest(SQLModel):
     comment: str | None = None
     date_created: str | None = None
     user: UserBoardGamePublic | None = None
-    #likes_count: int = 0
-    #user_has_liked: bool = False
+    likes_count: int = 0
+    user_has_liked: bool = False
 
 
