@@ -25,7 +25,7 @@ router = APIRouter(
 @limiter.limit("300/hour")
 def read_board_game_by_name(request: Request, name: str, session: SessionDep, _: UserBoardGame = Depends(get_current_user)):
     name = unquote(name)
-    statement = select(BoardGame).where(BoardGame.name.ilike(f'%{name}%'))
+    statement = select(BoardGame).where(BoardGame.name.ilike(f'%{name}%')).limit(15)
     board_games = session.exec(statement).all()
     if not board_games:
         raise HTTPException(status_code=404, detail="Board game not found")
