@@ -4,6 +4,7 @@ from app.connection import SessionDep
 from fastapi import APIRouter
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from app.models import Review, UserBoardGame, ReviewUpdate, ReviewPublic
+from app.models.user import UserBoardGamePublic
 from sqlalchemy.orm import selectinload
 from app.models.review import ReviewPublicTest
 from app.services import reviewsService
@@ -13,7 +14,7 @@ from app.utilities.profanity import contains_profanity
 from app.models.report import Report
 from app.models.reviewLike import ReviewLike
 from app.models.userBlockLink import UserBlockLink
-from sqlmodel import func
+from sqlmodel import func, case
 
 
 router = APIRouter(
@@ -52,19 +53,39 @@ def read_reviews_by_board_game_name(request: Request, board_game_id, session: Se
         Report.reporter_user_id == current_user.id,
         Report.content_type == "review",
     )
+    likes_count = func.count(ReviewLike.user_id).label("likes_count")
+    user_has_liked = func.max(
+        case((ReviewLike.user_id == current_user.id, 1), else_=0)
+    ).label("user_has_liked")
+
     statement = (
-        select(Review)
+        select(Review, likes_count, user_has_liked)
+        .join(ReviewLike, ReviewLike.review_id == Review.id, isouter=True)
         .where(Review.board_game_id == board_game_id)
         .where(Review.user_id.notin_(blocked_ids))
         .where(Review.user_id.notin_(blocked_by_ids))
         .where(Review.id.notin_(reported_review_ids))
         .options(selectinload(Review.user))
+        .group_by(Review.id)
         .order_by(Review.id.desc())
         .offset(offset)
         .limit(limit)
     )
-    reviews = session.exec(statement).all()
-    return reviews
+    rows = session.exec(statement).all()
+
+    return [
+        ReviewPublicTest(
+            id=review.id,
+            board_game_id=review.board_game_id,
+            rating=review.rating,
+            comment=review.comment,
+            date_created=review.date_created,
+            user=UserBoardGamePublic(id=review.user.id, username=review.user.username, email=review.user.email, profile_image_url=review.user.profile_image_url) if review.user else None,
+            likes_count=lc,
+            user_has_liked=bool(uhl),
+        )
+        for review, lc, uhl in rows
+    ]
 
 @router.get("/reviewStats/{board_game_id}")
 @limiter.limit("300/hour")
